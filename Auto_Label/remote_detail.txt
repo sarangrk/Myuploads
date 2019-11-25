@@ -1,0 +1,5 @@
+Pemfile_path: /Users/sk250120/Desktop/GDCAIPlatform.pem
+Hostname: 13.59.97.192
+Username: ec2-user
+Remote_Conda_env_name:/home/muddassir/anaconda2/envs/autolabel
+Remote_location: /home/smitha/keras_yolo3_aws/

@@ -1,0 +1,26 @@
+<annotation>
+	<folder>icons</folder>
+	<filename>expert1.png</filename>
+	<path>C:\Users\pr250037\Desktop\labelImg-master\icons\expert1.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>48</width>
+		<height>48</height>
+		<depth>1</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>tv</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>22</xmin>
+			<ymin>20</ymin>
+			<xmax>33</xmax>
+			<ymax>33</ymax>
+		</bndbox>
+	</object>
+</annotation>

@@ -1,0 +1,37 @@
+<annotation>
+    <folder>Detection</folder>
+    <filename>img_22_16_img38.jpg</filename>
+    <path>/Users/sk250120/Desktop/Auto_Label/keras_yolo3_master_final_1/EMTD/Detection/img_22_16_img38.jpg</path>
+    <source>
+        <database>Unknown</database>
+    </source>
+    <size>
+        <width>416</width>
+        <height>416</height>
+        <depth>3</depth>
+    </size>
+    <segmented>0</segmented>
+    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1606</xmin>
+            <ymin>279</ymin>
+            <xmax>1774</xmax>
+            <ymax>684</ymax>
+        </bndbox>
+    </object>    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1601</xmin>
+            <ymin>280</ymin>
+            <xmax>1781</xmax>
+            <ymax>684</ymax>
+        </bndbox>
+    </object>
+</annotation>

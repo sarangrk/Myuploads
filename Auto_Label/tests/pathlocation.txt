@@ -1,0 +1,3 @@
+TrainImageDirectory=C:/Users/pr250037/Documents
+TestImageDirectory=C:/Users/pr250037/Desktop
+ValidateImageDirectory=C:/Users/pr250037/Desktop

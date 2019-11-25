@@ -1,0 +1,59 @@
+<annotation>
+    <folder>Detection</folder>
+    <filename>img_22_16_img58.jpg</filename>
+    <path>/Users/sk250120/Desktop/Auto_Label/keras_yolo3_master_final_1/EMTD/Detection/img_22_16_img58.jpg</path>
+    <source>
+        <database>Unknown</database>
+    </source>
+    <size>
+        <width>416</width>
+        <height>416</height>
+        <depth>3</depth>
+    </size>
+    <segmented>0</segmented>
+    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1381</xmin>
+            <ymin>240</ymin>
+            <xmax>1524</xmax>
+            <ymax>580</ymax>
+        </bndbox>
+    </object>    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1598</xmin>
+            <ymin>260</ymin>
+            <xmax>1766</xmax>
+            <ymax>669</ymax>
+        </bndbox>
+    </object>    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1359</xmin>
+            <ymin>243</ymin>
+            <xmax>1558</xmax>
+            <ymax>577</ymax>
+        </bndbox>
+    </object>    <object>
+        <name>person</name>
+        <pose>Unspecified</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1608</xmin>
+            <ymin>258</ymin>
+            <xmax>1769</xmax>
+            <ymax>686</ymax>
+        </bndbox>
+    </object>
+</annotation>
