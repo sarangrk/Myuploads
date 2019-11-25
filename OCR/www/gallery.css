@@ -1,0 +1,62 @@
+#interview {
+    background-color: #d8d8d8
+}
+
+#corpusLeft {
+   /*display: block;
+   display: -webkit-flex;
+   display: -moz-flex;*/
+   display: flex;
+   direction: ltr;
+   /*-webkit-align-items: center;
+   -webkit-moz-items: center;*/
+   align-items: left;
+   /*-webkit-justify-content: center;
+   -moz-justify-content: center;
+   justify-content: center;
+   -webkit-flex-direction: row;
+   -moz-flex-direction: row;*/
+   flex-direction: row;
+   /*-webkit-flex-wrap: wrap;
+   -moz-flex-wrap: wrap;*/
+   flex-wrap: wrap;
+   /*-webkit-flex-flow: row wrap;
+   -moz-flex-flow: row wrap;*/
+   flex-flow: row wrap;
+   /*-webkit-align-content: flex-end;
+   -moz-align-content: flex-end;*/
+   align-content: flex-end;
+}
+
+
+#corpusLeft .box {
+  width: 268px;
+  height: 278px;
+  border-top: None;
+  margin: 10px;
+}
+
+#corpusLeft .image-wrap {
+  margin-left: 8px;
+  margin-top: -6px;
+  margin-bottom: 10px;
+  width: 200px;
+  height: 200px;
+  overflow:hidden;
+  box-sizing: border-box;
+
+}
+
+.fixed-height{
+  height: 200px;
+  vertical-align: middle;
+}
+
+.fixed-width{
+  vertical-align: middle;
+  width: 200px;
+}
+
+.small-box .icon-large {
+  right:25px;
+}

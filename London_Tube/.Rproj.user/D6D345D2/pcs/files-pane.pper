@@ -1,0 +1,9 @@
+{
+    "path" : "~/Work/my_r_test/My_testing_directory/credit scoring",
+    "sortOrder" : [
+        {
+            "ascending" : true,
+            "columnIndex" : 2
+        }
+    ]
+}

@@ -1,0 +1,355 @@
+##################################################################
+1. Create table for textanalytics 
+
+--create schema madura;
+
+drop table if exists madura.MHdata;
+CREATE TABLE madura.MHdata  ( 
+	UniqueID varchar ,
+	Customer varchar, 
+	Comment  varchar,
+	CallCenter_Comment   varchar
+)
+	DISTRIBUTE BY HASH (UniqueID)
+;
+
+--   Comments - clean
+ --   , Comment_verbitum - bad
+ 
+--ncluster_loader -D ',' -U db_superuser -w db_superuser --el-discard-errors --el-enabled --skip-rows 1 madura.MHdata /home/aster/MHData.xlsx
+
+select * from madura.MHdata;
+
+drop table if exists madura.MHdata1;
+
+CREATE TABLE madura.MHdata1  DISTRIBUTE BY HASH (UniqueID)
+as select *
+    , Comment || ' '  || CallCenter_Comment as Final_Comment
+;
+    
+--Tokenise the table, stem and remove stop words
+DROP TABLE IF EXISTS madura.MHdata_Parse;
+CREATE TABLE madura.MHdata_Parse DISTRIBUTE BY HASH (Uniqueid) as
+SELECT  Uniqueid, token, count(frequency) frequency
+FROM text_parser
+(
+ ON madura.MHdata1 
+ TEXT_COLUMN('final_comment')
+ CASE_INSENSITIVE('true')
+ STEMMING('TRUE') 
+ PUNCTUATION('\[.,\!\-*| &#(){}<>":+-=…;]?') 
+ ACCUMULATE('Uniqueid')
+ REMOVE_STOP_WORDS('true')
+ STOP_WORDS('madura_stopwords.txt')
+ LIST_POSITIONS('false')
+)
+WHERE token <> ''
+GROUP BY Uniqueid,  token
+
+select * from madura.MHdata_Parse;
+
+--Run the TFIDF function to apply a weight to the tokens
+DROP TABLE IF EXISTS madura.MHdatatfidf;
+CREATE TABLE madura.MHdatatfidf DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT *
+from TF_IDF (
+           ON TF(ON (SELECT Uniqueid as Uniqueid, 
+                            token as term,
+                            COUNT(*)::INT as count
+                    from madura.MHdata_Parse GROUP BY Uniqueid, token)
+            PARTITION BY Uniqueid) AS TF
+            PARTITION BY term
+            ON (select count(distinct(Uniqueid)) from madura.MHdata_Parse) AS doccount DIMENSION
+            ) ; 
+
+select * from madura.MHdatatfidf;
+
+
+--Remove some of the noise   
+DROP VIEW IF EXISTS madura.MHdatatfidf_v 
+CREATE VIEW madura.MHdatatfidf_v AS        
+SELECT * FROM madura.MHdatatfidf 
+WHERE term not like  '%?%' 
+AND term not like  '%@%'
+AND term not like  '%[%'
+AND term not like  '%]%'
+AND length(term) >= 3
+
+--Use SQL Window function to produce a top 5 list per tweets based on TFIDF scores
+DROP TABLE IF EXISTS madura.MHdatatfidf_top5tokens;
+CREATE TABLE madura.MHdatatfidf_top5tokens DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT tf.Uniqueid, term, tf_idf
+FROM(
+     SELECT ROW_NUMBER() OVER (PARTITION BY Uniqueid ORDER BY tf_idf DESC) as rownumber,
+	       Uniqueid,
+	       term,
+	       tf_idf
+	 FROM madura.MHdatatfidf
+	 ) tf 
+WHERE rownumber BETWEEN 1 AND 5
+
+select * from madura.MHdatatfidf_top5tokens;
+
+--Using LDA to create clusters of tweets by topic.
+--LDA can't work with schemas (!) so produce public schema view
+DROP VIEW IF EXISTS MHdatatfidf_top5tokens;
+CREATE VIEW MHdatatfidf_top5tokens AS SELECT * FROM madura.MHdatatfidf_top5tokens;
+
+--Try 20 topics 
+select * from ldatrainer(
+on (select 1) 
+partition by 1
+inputtable('MHdatatfidf_top5tokens')
+modeltable('MHdatatfidf_ldamodel')
+outputtable('MHdatatfidf_ldaout')
+topicnumber(20)
+docidcolumn('Uniqueid')
+wordcolumn('term')
+countcolumn('tf_idf')
+maxiterate(30)
+convergencedelta(1e-4)
+password('beehive')
+database('beehive')
+userid('beehive'));
+
+select * from MHdatatfidf_ldaout;
+
+--assign tweet to top scoring topic
+DROP TABLE madura.MHdatatfidf_topicid;
+CREATE TABLE madura.MHdatatfidf_topicid DISTRIBUTE BY HASH(Uniqueid)
+AS
+SELECT docid Uniqueid, topicid, topicweight
+FROM(
+     SELECT ROW_NUMBER() OVER (PARTITION BY docid ORDER BY topicweight DESC) as rownumber,
+	       docid,
+	       topicid,
+	       topicweight
+	 FROM MHdatatfidf_ldaout
+	 ) topics
+WHERE rownumber = 1
+
+--Look at topic definitions
+CREATE OR REPLACE VIEW madura.MHdatatfidf_topic_tokens as
+SELECT * FROM ldatopicprinter(
+ON MHdatatfidf_ldamodel partition by 1
+outputbyword('true') 
+SHOWWORDWEIGHT('true')
+SHOWWORDCOUNT('true')
+outputtopicwordnumber(10)
+)
+
+select * from madura.MHdatatfidf_topic_tokens;
+
+--View topics as a graph
+SELECT *
+FROM GraphGen(
+	ON (SELECT 	a.topicid, a.word as word_a, b.word as word_b, 1 as count, a.wordcount
+		FROM	madura.MHdatatfidf_topic_tokens a
+		JOIN	madura.MHdatatfidf_topic_tokens b
+		ON	 	a.topicid = b.topicid
+	) 
+PARTITION BY 1
+ORDER BY count desc
+item_format('cfilter')
+item1_col('word_a')
+item2_col('word_b')
+score_col('count')
+cnt1_col('count')
+cnt2_col('count')
+output_format('sigma') directed('false') width_max(15) width_min(1)  
+nodesize_max(15) nodesize_min(3)   
+domain('192.168.100.100')
+title('Topic Classification')
+)
+
+---- Sentiment Analysis ---
+DROP TABLE IF EXISTS madura.MHdata_sent;
+CREATE TABLE madura.MHdata_sent DISTRIBUTE BY HASH(docid) AS
+SELECT * FROM ExtractSentiment
+(ON madura.MHdata1
+text_column ('Final_Comment')
+model ('dictionary')
+level ('document')
+accumulate ('Uniqueid'));
+
+select * from madura.MHdata_sent;
+
+UPDATE madura.MHdata_sent SET out_strength = (-out_strength) WHERE out_polarity = 'NEG';
+ALTER TABLE madura.MHdata_sent RENAME COLUMN out_strength TO sentiment;
+ALTER TABLE madura.MHdata_sent DROP COLUMN out_polarity;
+ALTER TABLE madura.MHdata_sent DROP COLUMN out_sentiment_words;
+
+DROP TABLE IF EXISTS madura.MHdata_sent1;
+CREATE TABLE madura.MHdata_sent1 
+DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT madura.MHdata1.*,madura.MHdata_sent.sentiment 
+from madura.MHdata1
+INNER JOIN madura.MHdata_sent 
+ON madura.MHdata.Uniqueid = madura.MHdata_sent.Uniqueid;
+
+select * from madura.MHdata_sent1;
+
+-- Split by polarity
+CREATE TABLE madura.MHdata_positvesent DISTRIBUTE BY HASH(Uniqueid) AS
+select * from madura.MHdata_sent1 where sentiment > 0;
+
+CREATE TABLE madura.MHdata_negatvesent DISTRIBUTE BY HASH(Uniqueid) AS
+select * from madura.MHdata_sent1 where sentiment < 0;
+
+CREATE TABLE madura.MHdata_neutralsent DISTRIBUTE BY HASH(Uniqueid) AS
+select * from madura.MHdata_sent1 where sentiment = 0;
+
+select * from madura.MHdata_positvesent;
+select count(*) from madura.MHdata_negatvesent; --14726
+
+-- Tokenise tweets
+DROP TABLE IF EXISTS madura.MHdata_positvesent_par;
+CREATE TABLE madura.MHdata_positvesent_par DISTRIBUTE BY HASH(docid) AS
+SELECT * FROM text_parser
+(
+ON madura.MHdata_positvesent
+TEXT_COLUMN('tweet_text')
+CASE_INSENSITIVE('true')
+TOKEN_COLUMN_NAME('term')
+FREQUENCY_COLUMN_NAME('count')
+STEMMING('true')
+PUNCTUATION('[\\\[.,=?\!"\|:-;\~()\\\]]+')
+ACCUMULATE('docid')
+REMOVE_STOP_WORDS('true')
+STOP_WORDS('en_stopwords.txt')
+)
+WHERE term != '' and term != '#' and term != '0';
+
+select * from madura.MHdata_positvesent_par;
+
+--Remove some of the noise     
+DROP TABLE IF EXISTS madura.MHdata_positvesent_par_v;
+CREATE TABLE madura.MHdata_positvesent_par_v AS        
+SELECT * FROM madura.MHdata_positvesent_par 
+WHERE term not like  '%?%' 
+AND term not like  '%@%'
+AND term not like  '%[%'
+AND term not like  '%]%'
+AND length(term) > 3
+
+
+select * from madura.MHdata_positvesent_par_v;
+
+DROP TABLE IF EXISTS madura.MHdata_negatvesent_par;
+CREATE TABLE madura.MHdata_negatvesent_par DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT * FROM text_parser
+(
+ON madura.MHdata_negatvesent
+TEXT_COLUMN('tweet_text')
+CASE_INSENSITIVE('true')
+TOKEN_COLUMN_NAME('term')
+FREQUENCY_COLUMN_NAME('count')
+STEMMING('true')
+--PUNCTUATION('\[.,?\!\]')
+PUNCTUATION('[\\\[.,=?\!"\|:-;\~()\\\]]+')
+ACCUMULATE('docid')
+REMOVE_STOP_WORDS('true')
+STOP_WORDS('en_stopwords.txt')
+)
+WHERE term != '' and term != '#' and term != '0';
+
+--Remove some of the noise     
+DROP TABLE IF EXISTS madura.MHdata_negatvesent_par_v;
+CREATE TABLE madura.MHdata_negatvesent_par_v AS        
+SELECT * FROM madura.MHdata_negatvesent_par 
+WHERE term not like  '%?%' 
+AND term not like  '%@%'
+AND term not like  '%[%'
+AND term not like  '%]%'
+AND length(term) > 3
+
+CREATE TABLE madura.MHdata_neutralsent_par DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT * FROM text_parser
+(
+ON madura.MHdata_neutralsent
+TEXT_COLUMN('tweet_text')
+CASE_INSENSITIVE('true')
+TOKEN_COLUMN_NAME('term')
+FREQUENCY_COLUMN_NAME('count')
+STEMMING('true')
+--PUNCTUATION('\[.,?\!\]')
+PUNCTUATION('[\\\[.,=?\!"\|:-;\~()\\\]]+')
+ACCUMULATE('docid')
+REMOVE_STOP_WORDS('true')
+STOP_WORDS('en_stopwords.txt')
+)
+WHERE term != '' and term != '#' and term != '0';
+
+--Remove some of the noise     
+DROP TABLE IF EXISTS madura.MHdata_neutralsent_v;
+CREATE TABLE madura.MHdata_neutralsent_v AS        
+SELECT * FROM madura.MHdata_neutralsent 
+WHERE term not like  '%?%' 
+AND term not like  '%@%'
+AND term not like  '%[%'
+AND term not like  '%]%'
+AND length(term) > 3
+
+-- Calculate word associations with collaborative filtering
+SELECT *
+FROM cfilter (
+ON (SELECT 1)
+PARTITION BY 1
+INPUTTABLE('madura.MHdata_positvesent_par_v')
+OUTPUTTABLE('madura.MHdata_positvesent_cf')
+INPUTCOLUMNS('term')
+JOINCOLUMNS('Uniqueid')
+DROPTABLE('true')
+);
+
+select * from madura.MHdata_positvesent_cf;
+
+SELECT *
+FROM cfilter (
+ON (SELECT 1)
+PARTITION BY 1
+INPUTTABLE('madura.MHdata_negatvesent_par_v')
+OUTPUTTABLE('madura.MHdata_negatvesent_par_cf')
+INPUTCOLUMNS('term')
+JOINCOLUMNS('Uniqueid')
+DROPTABLE('true')
+);
+
+SELECT *
+FROM cfilter (
+ON (SELECT 1)
+PARTITION BY 1
+INPUTTABLE('madura.MHdata_neutralsent_v')
+OUTPUTTABLE('madura.MHdata_neutralsent_cf')
+INPUTCOLUMNS('term')
+JOINCOLUMNS('Uniqueid')
+DROPTABLE('true')
+);
+
+select * from tmadura.MHdata_neutralsent_v;
+
+select * from madura.MHdata_neutralsent_cf;
+
+-- Generate Sigma plot visualisations for top 1000 word associations for all three cfilter tables
+SELECT *
+FROM GraphGen (
+ON (SELECT * from madura.MHdata_positvesent_cf order by z_score desc limit 1000)
+PARTITION BY 1
+item_format('cfilter')
+item1_col('col1_item1')
+item2_col('col1_item2')
+cnt1_col('cnt1')
+cnt2_col('cnt2')
+score_col('z_score')
+output_format('sigma')
+title('Positive Sentiments')
+domain('192.168.100.100')
+)
+;
+
+
+
+    
+    
+
+

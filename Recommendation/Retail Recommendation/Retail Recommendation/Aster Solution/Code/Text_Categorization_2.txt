@@ -1,0 +1,69 @@
+CREATE TABLE madura.text_dictionary
+(
+comment_token 	varchar, 
+category        varchar
+)
+DISTRIBUTE BY HASH (comment_token);
+
+select * from madura.text_dictionary;
+
+select count(*)from madura.text_dictionary;
+----------------------------
+DROP TABLE IF EXISTS madura.text_category_unpivot;
+
+CREATE TABLE madura.text_category_unpivot DISTRIBUTE BY HASH (uniqueid)
+AS 
+select distinct a.uniqueid
+      ,a.storeid
+      ,a.token
+      ,b.category
+from madura.MHdata_Parse1 a 
+Left Join madura.text_dictionary b
+on a.token = b.comment_token;
+
+delete from madura.text_category_unpivot WHERE category is null;
+
+DROP TABLE IF EXISTS madura.text_category_pivot;
+
+CREATE TABLE madura.text_category_pivot DISTRIBUTE BY HASH (uniqueid)
+AS 
+select * from pivot(
+ON (select distinct uniqueid, storeid, category from madura.text_category_unpivot) partition by uniqueid
+partitions('uniqueid','storeid')
+Rows(5)
+metrics('category')
+);
+
+select * from madura.text_category_pivot where 	 category_0 is not null 
+										 and category_1 is not null
+										 and category_2 is not null
+										 and category_3 is not null
+										 and category_4 is not null
+										 ;
+-- Text categorization
+CREATE TABLE madura.text_categorization_2 DISTRIBUTE BY HASH (uniqueid)
+AS 
+select a.uniqueid,
+	   a.storeid,
+	   a.final_comment,
+	   a.sentiment,
+	   a.out_strength,
+	   b.category_0,
+	   b.category_1,
+	   b.category_2,
+	   b.category_3,
+	   b.category_4
+	 from madura.MHdata_senti a,
+	 	  madura.text_category_pivot b
+	 where
+	 a.uniqueid = b.uniqueid and
+	 a.storeid = b.storeid
+;
+create table text_categorization_2 as
+select * from madura.text_categorization_2;
+
+select * from text_categorization_2 where sentiment in ('NEG');
+
+drop table madura.text_categorization_2;
+
+select * from text_categorization_2 where category_0 = 'jeans' or category_1 = 'jeans' or category_2 = 'jeans';

@@ -1,0 +1,149 @@
+
+-------------------------------------------------------------------------------------------------------------------------
+—- Derived Table
+
+select * from loblaws.pos;
+
+
+create table loblaws.pos_new as
+(select Customer as customer_id,Phone_number
+                        ,Billing_doc_date as txn_date,Billing_document as txn_id,Division as subbrand 
+                        ,Division_1 as division,FG_PRODUCT_TYPE as product_type
+                        ,RETEK_DEPARTMENTS as department,RETEK_CLASS as category,RETEK_SUBCLASS as sub_category
+                        ,SLEEVE_DETAILS as sleeve,Size
+                        ,PC      
+                        ,NSV
+                        from loblaws.sales_lp_aug) with data;
+
+                        
+ select * from loblaws.pos_new;                     
+
+ 
+
+-- Split PoS Data into Training and Validation sets. Validation data sets - last 1 week and training datasets previous 3 weeks
+
+
+-- validation set last week of August 2016 
+
+
+drop table loblaws.POS_VALIDATION_NEW;
+drop table loblaws.POS_TRAINING_NEW;
+
+
+
+drop table loblaws.POS_VALIDATION_NEW
+
+create table loblaws.POS_VALIDATION_NEW as  (select  customer_id,phone_number,txn_id,txn_date,subbrand,division,product_type,category,sub_category,sleeve,size,PC,NSV,subbrand||'_'||department||'_'||category||'_'||sub_category||'_'||sleeve|| '_' ||size|| '_'  ||product_type as product from loblaws.pos_new where txn_date >= '23.08.2016' and nsv >= 0)
+with data;
+
+
+
+select * from loblaws.POS_VALIDATION_NEW;
+
+
+select * from loblaws.POS_Training;
+
+
+drop table loblaws.POS_TRAINING_NEW
+
+create table loblaws.POS_TRAINING_NEW as  (select  customer_id,phone_number,txn_id,txn_date,subbrand,division,product_type,category,sub_category,sleeve,size,PC,NSV,subbrand||'_'||department||'_'||category||'_'||sub_category||'_'||sleeve|| '_' ||size|| '_'  ||product_type as product from loblaws.pos_new where txn_date < '23.08.2016' and nsv >= 0)
+with data;
+
+
+select  product,sub_category,product_type from loblaws.POS_Training_new;
+
+select * from loblaws.pos_new
+
+
+-- identify accesories from the tables
+select distinct category from loblaws.pos_training_new;
+
+
+Belt
+Blazer
+Carry Bag
+Cufflinks
+Handkies
+Jacket
+Jeans
+Pocket Square
+Shirt
+Shoes
+Shorts
+Socks
+Suit
+Sweater
+SweatShirt
+Tie
+Trouser
+T Shirt
+Wallet
+Watches
+
+select distinct category from loblaws.pos_training_new;
+
+Belt
+Blazer
+Carry Bag
+Cufflinks
+Handkies
+Jacket
+Jeans
+Pocket Square
+Shirt
+Shoes
+Shorts
+Socks
+Suit
+Sweater
+SweatShirt
+Tie
+Trouser
+T Shirt
+Wallet
+Watches
+
+
+delete from loblaws.pos_training_new where category in 
+(
+'Carry Bag'
+);
+
+
+delete from loblaws.pos_validation_new where category in 
+(
+'Carry Bag'
+);
+
+
+
+delete from loblaws.pos_training_new where category in 
+('Belt',
+'Wallet',
+'Socks',
+'Sandal',
+'Watches',
+'Cufflinks',
+'Handkies',
+'Carry Bag',
+'Bag',
+'Shoes',
+'Travel Accessories',
+'Tie'
+);
+
+
+delete from loblaws.pos_validation_new where category in 
+('Belt',
+'Wallet',
+'Socks',
+'Sandal',
+'Watches',
+'Cufflinks',
+'Handkies',
+'Carry Bag',
+'Bag',
+'Shoes',
+'Travel Accessories',
+'Tie'
+);

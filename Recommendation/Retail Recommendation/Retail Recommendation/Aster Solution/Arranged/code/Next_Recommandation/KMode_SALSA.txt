@@ -1,0 +1,415 @@
+-- profile CRM Data
+select count(*) from madura.CRM; -- 1656485
+select count(distinct(cust_mob_nbr)) from madura.CRM where cust_mob_nbr != '';
+select count(cust_mob_nbr)from madura.CRM where cust_mob_nbr != '';
+
+select * from madura.CRM limit 10;
+select count(*)from madura.CRM where loyalty_customer is null and cust_mob_nbr is null; -- 0
+select distinct gender from madura.CRM;
+select distinct memb_tier from madura.CRM;
+select distinct city from madura.CRM order by city desc;
+
+--- move all loyalty customer id to cust mobile number column
+
+update madura.CRM
+set cust_mob_nbr = loyalty_customer 
+where cust_mob_nbr in ('Not assigned', 'NA', '0', ' ', '') or cust_mob_nbr is null;
+
+select count(distinct(cust_mob_nbr))from madura.CRM; -- 975928
+select count(*) from madura.CRM where cust_mob_nbr = ''; -- 74
+
+-- set all Females to F and Males to M
+update madura.CRM
+set gender = 'M' 
+where gender = 'Male';
+
+update madura.CRM
+set gender = 'F' 
+where gender = 'Female';
+
+update madura.CRM
+set gender = 'U'  -- unknown
+where gender is null or gender = '';
+
+-- Unknown member tiers
+update madura.CRM
+set memb_tier = 'Unknown' 
+where memb_tier = '';
+
+-- unknown cities
+update madura.CRM
+set city = 'Unknown'
+where city in ('','~');
+
+-- Adding a column for Age and populating it with difference between (Dec 31, 2016 and DoB)
+alter table madura.CRM
+  add column age varchar;
+  
+--alter table madura.CRM
+--   alter column age type char(2);
+
+--select dob, ((date_part('year', '2016-12-31'::date) - date_part('year', dob::date))::int)as age
+--from madura.CRM where dob is not null and age < '100' order by age desc;
+  
+update madura.CRM
+set age = ((date_part('year', '2016-12-31'::date) - date_part('year', dob::date))::int::char(2))
+where dob > '1916-12-31';
+
+select dob, age from madura.CRM order by age desc;
+
+select count(age)from madura.CRM where age = '' or age is null;
+
+-- unknown age
+update madura.CRM
+ set age = 'UK'
+where age = '' or age is null;
+
+--- RFM Table: See NBO.sql for RFM Calculation
+
+select * from madura.rfm_norm;
+
+select count(*)from madura.rfm_norm;
+
+drop table if exists madura.RFM_CRM;
+
+create table madura.RFM_CRM as
+(
+ select distinct a.cust_mob_nbr,
+ 	             a.store_id,
+ 	             a.dob,
+ 	             a.age,
+ 	             a.gender,
+ 	             a.city,
+ 	             a.memb_tier,
+       	 		 b.recency,
+        		 b.frequency,
+        		 b.monetary
+ from madura.CRM a,
+      madura.rfm_norm b
+ where a.cust_mob_nbr = b.cust_mob_nbr
+ 
+ );
+
+select * from madura.rfm_crm;
+select * from madura.crm;
+select * from madura.rfm_norm;
+select count(*)from madura.rfm_crm; -- 28671
+
+select count(distinct cust_mob_nbr) from madura.rfm_norm; -- 513773
+select count(distinct cust_mob_nbr) from madura.crm; --975928
+
+--- the join between rfm_norm and crm tables produces small dataset this is because of 91 suffixed phone numbers in CRM dataset
+
+
+-- kMode (tables created in public schema)
+drop table if exists madura_kmodesclusters;
+ 
+select * from kmodes(
+On (select 1) partition by 1
+inputtable ('madura.rfm_crm')
+NumClusters ('5')
+--outputtable('madura_kmodesclusters_cat')
+outputtable('madura_kmodesclusters') 
+inputcolumns('age','gender','city','memb_tier','recency','frequency','monetary') ascategories('gender','memb_tier','city')
+--inputcolumns('gender','city','memb_tier') ascategories('gender','memb_tier','city')
+);
+ 
+select * from madura_kmodesclusters;
+--select * from madura_kmodesclusters_cat;
+
+drop table madura_kmodespredict;
+--drop table madura_kmodespredict_cat;
+
+create table madura_kmodespredict distribute by hash(cluster_id)as
+--create table madura_kmodespredict_cat distribute by hash(cluster_id)as
+select * from kmodespredict(
+on madura_kmodesclusters as model dimension
+--on madura_kmodesclusters_cat as model dimension
+on madura.rfm_crm as input partition by any
+accumulate('cust_mob_nbr','gender','city','memb_tier')
+) order by cluster_id, cust_mob_nbr;
+
+select * from madura_kmodespredict;
+select count(*)from madura_kmodespredict;
+select count (distinct(cust_mob_nbr))from madura_kmodespredict;
+select cust_mob_nbr, cluster_id, count(cust_mob_nbr) as cnt from madura_kmodespredict group by cust_mob_nbr,cluster_id having count(cust_mob_nbr) > 1;
+
+
+--select * from madura_kmodespredict_cat;
+--select count(*)from madura_kmodespredict_cat;
+--select count (distinct(cust_mob_nbr))from madura_kmodespredict_cat;
+--select cust_mob_nbr, cluster_id, count(cust_mob_nbr) as cnt from madura_kmodespredict_cat
+--group by cust_mob_nbr,cluster_id having count(cust_mob_nbr) > 1;
+
+
+--drop table if exists madura.kmodespredict_raw_rfm_cat;
+drop table if exists madura.kmodespredict_raw_rfm;
+
+create table madura.kmodespredict_raw_rfm as
+--create table madura.kmodespredict_raw_rfm_cat as
+select distinct a.cust_mob_nbr,
+       a.cluster_id,
+       --a.age,
+       a.gender,
+       a.city,
+       a.memb_tier,
+       b.recency,
+       b.frequency,
+       b.monetary
+from 
+      madura_kmodespredict a,
+      --madura_kmodespredict_cat a,
+      madura.rfm b
+where a.cust_mob_nbr = b.cust_mob_nbr;
+
+
+select count(*) from madura.kmodespredict_raw_rfm;
+--select count(*) from madura.kmodespredict_raw_rfm_cat;
+
+--select count(distinct(cust_mob_nbr)) from madura.kmodespredict_raw_rfm_cat;
+select count(distinct(cust_mob_nbr)) from madura.kmodespredict_raw_rfm;
+
+select cluster_id, count(cust_mob_nbr)as cnt 
+from madura.kmodespredict_raw_rfm group by cluster_id;
+--from madura.kmodespredict_raw_rfm_cat group by cluster_id;
+
+-- stats
+select  cluster_id
+       ,AVG(recency) as avg_recency
+       ,MIN(recency) as min_recency 
+       ,MAX(recency) as max_recency 
+       ,AVG(frequency) as avg_freq 
+       ,MIN(frequency) as min_freq 
+       ,MAX(frequency) as max_freq
+       ,AVG(monetary) as avg_monetary 
+       ,MIN(monetary) as min_monetary 
+       ,MAX(monetary) as max_monetary
+       --,MIN(age)as min_age
+       --,MAX(age)as max_age
+       ,count(cust_mob_nbr) as num_cust
+from madura.kmodespredict_raw_rfm
+--from madura.kmodespredict_raw_rfm_cat
+group by cluster_id;
+
+-- we will choose cluster 4 with number of customer mobile number.
+
+-- check if customers' POS records exist in test set --
+
+select count(*)from madura.pos_training where cust_mob_nbr in 
+--(select distinct cust_mob_nbr from madura.kmodespredict_raw_rfm_cat where cluster_id = '4');
+  (select distinct cust_mob_nbr from madura.kmodespredict_raw_rfm where cluster_id = '4');
+
+-- check if customers' POS records exist in validation set - 
+select count(*)from madura.pos_validation where cust_mob_nbr in 
+--(select distinct cust_mob_nbr from madura.kmodespredict_raw_rfm_cat where cluster_id = '4');
+(select distinct cust_mob_nbr from madura.kmodespredict_raw_rfm where cluster_id = '4');
+  ----------------------------------------------------------------------------------
+
+-- We will run pSALSA on customers in cluster 4
+
+-- create subset of pos records which contains only those customers that are in cluster 4
+ drop table if exists madura.pos_training_cluster4; 
+  
+  create table madura.pos_training_cluster4 as
+  select * from madura.pos_training where cust_mob_nbr in 
+--(select distinct(cust_mob_nbr)from madura.kmodespredict_raw_rfm_cat where cluster_id = '4');
+  (select distinct(cust_mob_nbr)from madura.kmodespredict_raw_rfm where cluster_id = '4');
+  
+  select * from madura.pos_training_cluster4;
+  select count(*) from madura.pos_training_cluster4;
+
+-- inputs for pSALSA
+
+--creating a table that lists all mobile numbers and products in a single column and assigns an id to them
+
+drop table if exists madura.user_product_nodes_tmp;
+
+create FACT TABLE madura.user_product_nodes_tmp (nodename varchar) distribute by hash(nodename) as 
+(select distinct product as nodename from madura.pos_training_cluster4
+UNION ALL
+select distinct cust_mob_nbr as nodename from madura.pos_training_cluster4)
+;
+
+select * from madura.user_product_nodes_tmp;
+
+select count(*)from madura.user_product_nodes_tmp;
+
+drop table if exists madura.user_product_nodes;
+
+create FACT TABLE madura.user_product_nodes (nodeid integer, nodename varchar) distribute by hash(nodeid);
+
+INSERT INTO madura.user_product_nodes
+SELECT ROW_NUMBER() OVER (ORDER BY tab1.nodename) as nodeid,
+tab1.nodename as nodename
+FROM madura.user_product_nodes_tmp as tab1
+;
+
+select * from madura.user_product_nodes;
+select count(*)from madura.user_product_nodes;
+
+drop table if exists madura.user_product_nodes_tmp;
+
+drop table if exists madura.prod_frequency;
+
+create FACT TABLE madura.prod_frequency (username varchar,  prod_node_id varchar, product varchar, frequency integer) distribute by hash (username) as
+select A.cust_mob_nbr as username
+      ,B.nodeid as prod_id
+      ,A.product as product
+        ,count(1) as frequency
+from madura.pos_training_cluster4 A, 
+     madura.user_product_nodes B
+where A.product = B.nodename     
+group by A.cust_mob_nbr , B.nodeid, A.product
+;
+
+select * from madura.pos_training_cluster4 where cust_mob_nbr in ('919986710821','919316256777');
+select * from madura.pos_training_cluster4 where cust_mob_nbr in ('919869477252','919941431305');
+
+--verify input table
+select count(distinct(product)) from madura.prod_frequency;
+select * from madura.prod_frequency order by frequency desc;
+select count (product) from madura.prod_frequency;
+select count (prod_node_id)from madura.prod_frequency;
+select count(distinct(prod_node_id))from madura.prod_frequency;
+
+drop table if exists madura.user_product_salsa;
+
+create table madura.user_product_salsa distribute by hash (username) as
+SELECT * FROM pSALSA(
+ON (select username from madura.prod_frequency union select product from madura.prod_frequency)AS vertices PARTITION BY username
+ON madura.prod_frequency AS edges PARTITION BY username
+ON (select distinct username from madura.prod_frequency)AS sources partition by username
+ON (select distinct product from madura.prod_frequency)AS targets partition by product
+SOURCEKEY('username')
+TARGETKEY('product')
+EDGEWEIGHT('frequency')
+MAXHUBNUM('2')
+MAXAUTHORITYNUM('2')
+TELEPORTPROB('0.15')
+RANDOMWALKLENGTH('500')
+);
+
+--verify salsa output
+select * from madura.user_product_salsa;
+
+
+select * from graphgen( 
+	on(select * from madura.user_product_salsa 
+	   where authority_product is not null and username in (select distinct username from madura.prod_frequency limit 200) ) 
+	partition by 1 
+	item_format('individual') 
+	item1_col('username') 
+	item2_col('authority_product') 
+	score_col('authority_score') 
+	output_format('sigma') 
+--	aster_lens('true') 
+	directed('true') 
+	title ('Recommendation pSALSA'));
+	
+-- splitting pSALSAS Recommended products into sub-components
+drop table if exists madura.psalsa_reco_split;
+
+create table madura.psalsa_reco_split as
+select *
+ 		,split_part(authority_product,'_',1) as sub_brand
+		,split_part(authority_product,'_',2) as cateogry
+		,split_part(authority_product,'_',3) as sleeve
+		,split_part(authority_product,'_',4) as fit
+		,split_part(authority_product,'_',5) as apparel_pattern
+		,split_part(authority_product,'_',6) as apparel_size
+		,split_part(authority_product,'_',7) as fashion_pyramid
+from
+	madura.user_product_salsa;
+	
+select * from madura.psalsa_reco_split;
+select * from madura.psalsa_reco_split where username in ('919986710821','919316256777');
+select * from madura.psalsa_reco_split where username in ('919869477252','919941431305');
+
+-- Accuracy checks
+  ---- pSALSA Accuracy checks
+select * from madura.psalsa_reco_split order by username, authority_score desc;
+select * from madura.pos_validation where username != '0' order by username;
+
+drop table if exists madura.psalsa_reco_split_top10;
+
+create table madura.psalsa_reco_split_top10 as
+  (select * from (select *, row_number()over (partition by username order by authority_score desc) as row_id from 
+  madura.psalsa_reco_split) as A where row_id < 11  order by username);
+  
+select count(distinct(username))from madura.psalsa_reco_split_top10 where authority_score is not null; -- 867
+select count(distinct(username))from madura.psalsa_reco_split_top10 where authority_score is not null and
+                                     username in (select distinct(cust_mob_nbr)from madura.pos_validation); -- 115
+
+select * from madura.psalsa_reco_split_top10;
+
+
+-- assuming a match in category, fit, and size
+
+select distinct reco.authority_score,
+	   act.cust_mob_nbr as cust_mob_number,
+       reco.sub_brand as reco_sub_brand,
+	   act.sub_brand  as act_sub_brand,
+       reco.cateogry  as reco_category,
+       act.category   as act_category,
+       reco.sleeve    as reco_sleeve,
+       act.sleeve     as act_sleeve,
+       reco.fit       as reco_fit ,
+       act.fit        as act_fit ,
+       reco.apparel_pattern as reco_apparel_pattern,
+       act.apparel_pattern  as act_apparel_pattern,
+       reco.apparel_size    as reco_apparel_size ,
+       act.apparel_size     as act_apparel_size,
+       reco.fashion_pyramid as reco_fashion_pyramid,
+       act.fashion_pyramid  as act_fashion_pyramid      
+from   madura.psalsa_reco_split_top10 reco, 
+       madura.pos_validation act
+where reco.authority_score is not null
+  and act.cust_mob_nbr = reco.username
+  and act.category     = reco.cateogry
+--and act.apparel_size = reco.apparel_size
+  and act.sleeve       = reco.sleeve
+  and act.fit          = reco.fit
+order by 
+      act.cust_mob_nbr,
+      reco.authority_score desc
+  ;
+  
+--coverage (23/115)  
+select count(distinct(reco.username))
+from   madura.psalsa_reco_split_top10 reco, 
+       madura.pos_validation act
+where reco.authority_score is not null
+  and act.cust_mob_nbr = reco.username
+  and act.category     = reco.cateogry
+--and act.apparel_size = reco.apparel_size
+  and act.sleeve       = reco.sleeve
+  and act.fit          = reco.fit
+  ;
+  
+-- probability range(0.14 - 0.03)
+select max(reco.authority_score),
+       min (reco.authority_score)
+from   madura.psalsa_reco_split_top10 reco, 
+       madura.pos_validation act
+where reco.authority_score is not null 
+  and act.cust_mob_nbr = reco.username
+  and act.category    = reco.cateogry
+  and act.apparel_size = reco.apparel_size
+  and act.fit = reco.fit
+  ;
+-- Accuracy tests (comment out parameters that you don't want to use)
+select count(distinct(reco.username))
+from   madura.psalsa_reco_split_top10 reco, 
+       madura.pos_validation act
+where   reco.authority_score is not null
+    and act.cust_mob_nbr = reco.username
+ -- and act.category    = reco.cateogry
+  --and act.apparel_pattern = reco.apparel_pattern
+ -- and act.fashion_pyramid = reco.fashion_pyramid
+  --  and act.apparel_size = reco.apparel_size
+ -- and act.sleeve       = reco.sleeve
+   -- and act.fit = reco.fit
+  --and act.sub_brand = reco.sub_brand
+  ;
+
+

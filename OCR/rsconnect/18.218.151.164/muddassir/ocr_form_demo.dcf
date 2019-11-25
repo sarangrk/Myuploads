@@ -1,0 +1,13 @@
+name: ocr_form_demo
+title: OCR_Form_Demo
+username: muddassir
+account: muddassir
+server: 18.218.151.164
+hostUrl: http://18.218.151.164:3939/__api__
+appId: 4
+bundleId: 7
+url: http://18.218.151.164:3939/content/4/
+when: 1529567125.12203
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|__pycache__/MainScript.cpython-36.pyc

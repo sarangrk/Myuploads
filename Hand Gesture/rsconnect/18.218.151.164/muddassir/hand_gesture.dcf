@@ -1,0 +1,12 @@
+name: hand_gesture
+title: hand_gesture
+username: muddassir
+account: muddassir
+server: 18.218.151.164
+hostUrl: http://18.218.151.164:3939/__api__
+appId: 5
+bundleId: 33
+url: http://18.218.151.164:3939/handgesture/
+when: 1530191435.40248
+asMultiple: FALSE
+asStatic: FALSE

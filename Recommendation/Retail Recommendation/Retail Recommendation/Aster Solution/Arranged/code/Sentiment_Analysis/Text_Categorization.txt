@@ -1,0 +1,242 @@
+--Tokenise the table, stem and remove stop words
+DROP TABLE IF EXISTS madura.MHdata_Parse1;
+
+CREATE TABLE madura.MHdata_Parse1 
+(
+Uniqueid 	varchar,
+storeid		varchar,
+token 		varchar(150)
+)
+DISTRIBUTE BY HASH (Uniqueid);
+
+Select * from madura.mhdata1 where final_comment > ' ';
+
+Insert into madura.MHdata_Parse1 
+	SELECT  uniqueid , storeid , token 
+	FROM text_parser
+	(
+ 	ON madura.mhdata1 
+ 		TEXT_COLUMN('final_comment')
+ 		CASE_INSENSITIVE('true')
+ 		--STEMMING('TRUE') 
+ 		--PUNCTUATION('\[.,\!\-*| &#(){}<>":+-=Ö;]?') 
+ 		ACCUMULATE('uniqueid','storeid')
+ 		REMOVE_STOP_WORDS('true')
+ 		--STOP_WORDS('madura_stopwords.txt')
+ 		LIST_POSITIONS('false')
+	)
+	WHERE length(token) >= 3
+
+--GROUP BY Uniqueid, customer,  token
+;
+
+select * from madura.MHdata_Parse1 where uniqueid in ('13738673','13750989') order by uniqueid;
+
+select * from madura.MHdata1 where uniqueid in ('13738673','13750989');
+
+-- load madura lookup table
+
+DROP TABLE IF EXISTS madura.text_lookup;
+
+CREATE TABLE madura.text_lookup
+(
+comment 	varchar 
+)
+DISTRIBUTE BY HASH (comment);
+
+insert into madura.text_lookup values('store');
+insert into madura.text_lookup values('collection');
+insert into madura.text_lookup values('staff');
+insert into madura.text_lookup values('bag');
+insert into madura.text_lookup values('color');
+insert into madura.text_lookup values('blazer');
+insert into madura.text_lookup values('kids');
+insert into madura.text_lookup values('brand');
+insert into madura.text_lookup values('design');
+insert into madura.text_lookup values('trouser');
+insert into madura.text_lookup values('jeans');
+insert into madura.text_lookup values('discount');
+insert into madura.text_lookup values('dress');
+insert into madura.text_lookup values('quality');
+insert into madura.text_lookup values('women');
+insert into madura.text_lookup values('fit');
+insert into madura.text_lookup values('shoes');
+insert into madura.text_lookup values('formal');
+insert into madura.text_lookup values('jacket');
+insert into madura.text_lookup values('mens');
+insert into madura.text_lookup values('price');
+insert into madura.text_lookup values('loyalty');
+insert into madura.text_lookup values('shirt');
+insert into madura.text_lookup values('shorts');
+insert into madura.text_lookup values('size');
+insert into madura.text_lookup values('tshirt');
+
+
+select * from madura.text_lookup;
+    
+
+DROP TABLE IF EXISTS madura.text_categ;
+
+CREATE TABLE madura.text_categ DISTRIBUTE BY HASH (uniqueid)
+AS 
+select a.uniqueid
+      ,a.storeid
+      ,a.token
+      ,b.comment
+      ,CASE  
+         WHEN b.comment is not null THEN comment 
+       ELSE null 
+       END  as Category 
+from madura.MHdata_Parse1 a 
+Left Join madura.text_lookup b
+on a.token = b.comment;
+
+delete from madura.text_categ WHERE Category is null;
+
+select * from madura.text_categ where uniqueid in ('13738673','13750989') order by uniqueid;
+
+DROP TABLE IF EXISTS madura.text_category;
+
+CREATE TABLE madura.text_category DISTRIBUTE BY HASH (uniqueid)
+AS 
+select * from pivot(
+ON (select uniqueid, storeid, category from madura.text_categ) partition by uniqueid
+partitions('uniqueid','storeid')
+Rows(4)
+metrics('category')
+);
+
+select * from madura.text_category where 	 category_0 is not null 
+										 and category_1 is not null
+										 and category_2 is not null
+										 and category_3 is not null
+;
+
+-- Extract sentiment -- 
+
+DROP TABLE IF EXISTS madura.MHdata_senti;
+
+CREATE TABLE madura.MHdata_senti DISTRIBUTE BY HASH(Uniqueid) AS
+SELECT * FROM ExtractSentiment
+(ON madura.MHdata1
+text_column ('Final_Comment')
+model ('dictionary')
+level ('document')
+accumulate ('Uniqueid','storeid','Final_Comment'));
+
+select * from madura.MHdata_senti;
+
+UPDATE madura.MHdata_senti SET out_strength = (-out_strength) WHERE out_polarity = 'NEG';
+
+ALTER TABLE madura.MHdata_senti RENAME COLUMN out_polarity TO sentiment;
+--ALTER TABLE madura.MHdata_sent DROP COLUMN out_polarity;
+ALTER TABLE madura.MHdata_senti DROP COLUMN out_sentiment_words;
+
+
+-- Text Categorization
+DROP TABLE IF EXISTS madura.text_categorization;
+
+CREATE TABLE madura.text_categorization DISTRIBUTE BY HASH (uniqueid)
+AS 
+select a.*
+      ,b.final_comment
+      ,b.sentiment
+      ,b.out_strength
+from madura.text_category a 
+Left Join madura.MHdata_senti b
+on a.uniqueid = b.uniqueid
+and a.storeid = b.storeid;
+
+select count(*) from madura.text_categorization where storeid = '101142';
+
+
+select * from madura.text_category where uniqueid = '6145';
+select * from madura.text_categ where uniqueid = '6145';
+
+/* -- What is this???? DONT USE THIS
+DROP TABLE IF EXISTS madura.text_categorization_alt;
+
+CREATE TABLE madura.text_categorization_alt DISTRIBUTE BY HASH (uniqueid)
+AS 
+select a.uniqueid
+      ,a.storeid
+      ,a.category
+      ,b.sentiment
+  from madura.text_categ a 
+Left Join madura.MHdata_senti b
+on a.uniqueid = b.uniqueid
+and a.storeid = b.storeid
+;
+
+select count(*) from madura.text_categorization_alt where storeid = '101142' ;
+--order by storeid,uniqueid;
+*/
+
+--- Plot ---
+-- category sentiment by stores
+drop table if exists madura.Store_Cat_Sentiment_Plot;
+
+create table  madura.Store_Cat_Sentiment_Plot DISTRIBUTE BY HASH(storeid) as
+select  
+       storeid
+      ,category
+      ,sentiment
+      ,count(uniqueid) as store_cat_sent_freq
+from madura.text_categorization_alt
+group by storeid,category,sentiment
+;
+
+select * from madura.Store_Cat_Sentiment_Plot order by store_cat_sent_freq desc;
+
+-- store sentiment plot
+drop table if exists madura.Store_Sentiment_Plot;
+
+create table  madura.Store_Sentiment_Plot DISTRIBUTE BY HASH(storeid) as
+select  
+       storeid
+      ,sentiment
+      ,count(uniqueid) as cust_sent_freq
+from madura.text_categorization_alt
+group by storeid,sentiment
+;
+
+select * from madura.Store_Sentiment_Plot;
+
+--- creating the table in public schema
+ 
+create table store_sentiment_plot as
+select * from madura.store_sentiment_plot;
+
+select * from store_sentiment_plot;
+
+--- Category sentiment
+drop table if exists madura.Category_Sentiment_Plot;
+
+create table  madura.Category_Sentiment_Plot DISTRIBUTE BY HASH(Category) as
+select  
+       Category
+      ,sentiment
+      ,count(uniqueid) as cat_sent_freq
+from madura.text_categorization_alt
+group by Category,sentiment
+;
+ 
+select * from madura.Category_Sentiment_Plot;
+
+-- overall sentiment plot
+drop table madura.Sentiment_Plot;
+
+create table  madura.Sentiment_Plot DISTRIBUTE BY HASH(sentiment) as
+select  
+       sentiment
+      ,count(uniqueid) as sent_freq
+from madura.text_categorization_alt
+group by sentiment
+;
+
+select * from madura.category_sentiment_plot;
+select * from madura.text_categorization;
+select * from madura.store_sentiment_plot where storeid = '101142';
+select * from madura.sentiment_plot;
+
+

@@ -1,0 +1,225 @@
+
+-- Create Schema
+create schema MADURA;
+
+--- Create table
+drop table if exists MADURA.POS;
+
+create table MADURA.POS (
+TXN_ID INTEGER, 
+STORE_ID INTEGER,
+CUST_MOB_NBR VARCHAR,
+TXN_DATE DATE,
+SUB_BRAND VARCHAR,
+APPAREL_PATTERN VARCHAR,
+FIT VARCHAR,
+FASHION_PYRAMID VARCHAR,
+LOYALTY_CUSTOMER VARCHAR,
+STYLE_CODE VARCHAR,
+CATEGORY VARCHAR,
+SLEEVE VARCHAR,
+APPAREL_SIZE VARCHAR,
+QUANTITY VARCHAR,
+SELLING_PRICE DECIMAL
+)
+DISTRIBUTE BY HASH(TXN_ID)
+;
+-- ncluster_loader -D ',' -U db_superuser -w db_superuser --el-discard-errors --el-enabled --skip-rows 1 --date-style SQL,DMY  MADURA.POS /home/aster/POS.csv
+
+---some basic analysis
+select count(*) from MADURA.POS;
+select count(*) from MADURA.POS where cust_mob_nbr in ('Not assigned', 'NA') and loyalty_customer in ('Not assigned','0','STAFFUNIFORM');
+
+Select * from MADURA.POS ;
+
+Select distinct cust_mob_nbr from MADURA.POS order by cust_mob_nbr desc;
+Select distinct loyalty_customer from MADURA.POS order by loyalty_customer;
+
+Select count (distinct loyalty_customer) from madura.pos;
+
+select count(loyalty_customer)as instances,loyalty_customer from madura.pos group by loyalty_customer order by count(loyalty_customer)desc;
+--------------
+-- code for Delta loads into POS Tables
+----Temp table to just load incremental data
+create table MADURA.POS_TEMP (
+TXN_ID INTEGER, 
+STORE_ID INTEGER,
+CUST_MOB_NBR VARCHAR,
+TXN_DATE DATE,
+SUB_BRAND VARCHAR,
+APPAREL_PATTERN VARCHAR,
+FIT VARCHAR,
+FASHION_PYRAMID VARCHAR,
+LOYALTY_CUSTOMER VARCHAR,
+STYLE_CODE VARCHAR,
+CATEGORY VARCHAR,
+SLEEVE VARCHAR,
+APPAREL_SIZE VARCHAR,
+QUANTITY VARCHAR,
+SELLING_PRICE DECIMAL
+)
+DISTRIBUTE BY HASH(TXN_ID)
+;
+
+--nCluster loader to Temp table
+
+---insert from temp table (incremental)
+INSERT INTO MADURA.POS
+(SELECT * FROM MADURA.POS_TEMP);
+
+--flush temp table
+Delete from MADURA.POS_TEMP;
+select count(*) from madura.pos_temp;
+
+------
+
+-- CRM Table
+
+create table MADURA.CRM (
+STORE_ID INTEGER, 
+LOYALTY_CUSTOMER VARCHAR,
+F_NAME VARCHAR,
+L_NAME VARCHAR,
+DOB DATE,
+GENDER VARCHAR,
+MAR_STATUS VARCHAR,
+ADDRESS VARCHAR,
+POSTAL_CODE VARCHAR,
+EMAIL_ID VARCHAR,
+CUST_MOB_NBR VARCHAR,
+ANNIV_DATE VARCHAR,
+BASE_POINTS DECIMAL,
+STATE VARCHAR,
+CITY VARCHAR,
+MEMB_TIER VARCHAR,
+REGISTERED_DATE DATE,
+LIFE_TIME_PURCHASE DECIMAL,
+AGE_GROUP VARCHAR,
+CURR_POINTS varchar
+)
+DISTRIBUTE BY HASH(STORE_ID)
+;
+
+--ALTER TABLE MADURA.CRM ALTER COLUMN CURR_POINTS type VARCHAR;
+-- ncluster_loader -D '|' -U db_superuser -w db_superuser --el-discard-errors --el-enabled --skip-rows 1 --date-style SQL,DMY  MADURA.CRM /home/aster/CRM.txt
+
+select * from madura.crm;
+
+--delete from madura.crm;
+
+-- joining CRM and PoS Tables
+
+select * from madura.pos where loyalty_customer in 
+(
+ Select CRM.loyalty_customer
+       --CRM.f_name,
+       --CRM.l_name,
+      -- CRM.gender,
+      -- CRM.city,
+       --count(POS.txn_id)
+ from madura.crm CRM,
+      madura.pos POS
+ where CRM.loyalty_customer = POS.loyalty_customer
+ group by CRM.loyalty_customer
+ order by count(POS.txn_id)desc)
+ order by  loyalty_customer
+ ;
+
+ -- MH Data
+drop table if exists madura.MH;
+
+CREATE TABLE madura.MH  ( 
+	UniqueID varchar ,
+	StoreID  varchar, 
+	Comment  varchar,
+	CallCenter_Comment   varchar
+)
+	DISTRIBUTE BY HASH (UniqueID)
+;
+
+--nCluster loader
+
+--Basic checks and housekeeping
+Select count(*)from madura.MH;
+Select count(*)from madura.MH 
+where ((comment is not null and comment > ' ') or (callcenter_comment is not null and callcenter_comment > ' '));
+
+select count(*)from madura.MH where comment != '' or callcenter_comment != '';
+select * from madura.MH where comment = '' and callcenter_comment = '';
+-------------------------------------------------------------------------------------------------------------------------
+-- Split PoS Data into Training and Validation sets. Validation data sets - last 3 months and training datasets previous 21 months
+select * from madura.pos;
+
+-- validation set June, July and August 2016 
+
+drop table if exists madura.POS_VALIDATION;
+drop table if exists madura.POS_TRAINING;
+
+-- we are adding concatenation of columns in the table so that we can use the concatenated column for display and analysis
+
+create table madura.POS_VALIDATION distribute by hash(txn_id)as
+select *, sub_brand || '_'  || category || '_'  || sleeve || '_'  || fit || '_'  || apparel_pattern || '_' || apparel_size || '_'  ||
+       fashion_pyramid as product from madura.pos where txn_date >= '2016-06-01' and selling_price >= 0;
+
+-- training set everything else
+create table madura.POS_TRAINING distribute by hash(txn_id )as
+select *,sub_brand || '_'  || category || '_'  || sleeve || '_'  || fit || '_'  || apparel_pattern || '_' || apparel_size || '_'  ||
+       fashion_pyramid as product from madura.pos where txn_date < '2016-06-01' and selling_price >= 0;
+
+-- verify that the tables have been created properly
+select * from madura.pos_validation order by txn_date desc limit 200;
+select * from madura.pos_training order by txn_date desc limit 200;
+select count(*)from madura.pos_training;
+select count(*)from madura.pos_validation;
+
+-- identify accesories from the tables
+select distinct category from madura.pos_training;
+
+-- delete accessories from tables
+delete from madura.pos_training where category in 
+('Belt',
+'Wallet',
+'Socks',
+'Sandal',
+'Watches',
+'Cufflinks',
+'Handkies',
+'Carry Bag',
+'Bag',
+'Shoes',
+'Travel Accessories',
+'Tie'
+);
+
+delete from madura.pos_validation where category in 
+('Belt',
+'Wallet',
+'Socks',
+'Sandal',
+'Watches',
+'Cufflinks',
+'Handkies',
+'Carry Bag',
+'Bag',
+'Shoes',
+'Travel Accessories',
+'Tie'
+);
+
+-- populating loyalty numbers into customer mobile numbers in cases where customer mobile numbers do not exist
+-- the issue of non-existing mobile numbers exists in training datasets only
+
+update madura.pos_training
+set cust_mob_nbr = loyalty_customer 
+where cust_mob_nbr in ('Not assigned', 'NA', '0');
+
+select distinct cust_mob_nbr from madura.pos_training order by 1 desc;
+
+--remove garbage
+
+delete from madura.pos_training where cust_mob_nbr in ('Not assigned', 'STAFFUNIFORM');
+delete from madura.pos_validation where cust_mob_nbr in ('Not assigned','STAFFUNIFORM');
+
+--- Node Data Clean up ( do this only if your Worker node is in red and running out of space)
+--- deleting tables from public schema
+-- Go to Admin mode and drop all unwanted table

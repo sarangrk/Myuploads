@@ -1,0 +1,719 @@
+ 
+ 
+
+select * from madura.pos;
+ 
+ drop table if exists madura.pos;
+CREATE TABLE madura.pos  ( 
+	Store_ID integer ,
+	Cust_Mob_No varchar, 
+	Txn_Date  date,
+	Txn_Id   integer,
+	SubBrand varchar,
+	pattern1 varchar,
+	fit varchar,
+	fashion_pyramid varchar,
+	Loyalty_Customer varchar,
+	Style_Code varchar,
+	Category varchar,
+	Sleeve varchar,
+	Size varchar,
+	Quantity integer,
+	Selling_Price decimal
+	)
+	DISTRIBUTE BY HASH (Txn_Id)
+;
+
+--ncluster_loader -D ',' -U db_superuser -w db_superuser --el-discard-errors --el-enabled --skip-rows 1 --date-style SQL,DMY madura.pos /home/aster/POS.csv
+
+*** Filter Mobile Number ***
+
+select * from madura.pos;
+
+
+commit;
+
+--INSERT INTO madura.pos  distribute by hash(Txn_Id) (product) 
+-- SELECT Style_Code || '_'  || SubBrand || '_'  || category || '_'  || sleeve || '_'  || fit || '_'  || pattern1 || '_' || Size || '_'  ||
+--       fashion_pyramid as product 
+--from madura.pos;
+
+drop table if exists madura.pos1;
+
+CREATE TABLE madura.pos1  DISTRIBUTE BY HASH (Txn_Id)
+as select *
+    , Style_Code || '_'  || Sub_Brand || '_'  || category || '_'  || sleeve || '_'  || fit || '_'  ||apparel_pattern || '_' || apparel_size || '_'  ||
+       fashion_pyramid as product
+    from madura.pos
+    
+ --   Comments - clean
+ --   , Comment_verbitum - bad
+    
+select * from madura.pos1 ;
+
+delete from madura.pos1 where selling_price <0;
+
+delete from madura.pos1 where product like '%_Carry Bag_%'
+
+select * from madura.pos1 where product like '%_Carry%'
+
+drop table madura.monetary;
+create table madura.monetary DISTRIBUTE BY HASH(cust_mob_nbr) as
+select cust_mob_nbr, 
+       txn_date, 
+       sum(selling_price) as sum_selling_price 
+from madura.pos1
+group by cust_mob_nbr, txn_date
+order by cust_mob_nbr, txn_date
+;
+
+select * from madura.monetary;
+
+
+drop table  madura.RFM;
+create table  madura.RFM DISTRIBUTE BY HASH(cust_mob_nbr) as
+select cust_mob_nbr, 
+   --   max(txn_date) as max_txn_date,
+       (Date '2016-09-01' - max(txn_date)) Recency ,
+       count(cust_mob_nbr) as Frequency,
+       sum(sum_selling_price) as Monetary
+from madura.monetary
+group by cust_mob_nbr
+order by cust_mob_nbr;
+
+select * from madura.RFM 
+order by cust_mob_nbr;
+
+--drop table if exists madura_rfm
+--CREATE TABLE madura_rfm DISTRIBUTE BY HASH(cust_mob_nbr) AS
+--SELECT * from madura.RFM
+
+/*** For Plots ***/
+drop table  madura.RFM_RecencyPlot;
+create table  madura.RFM_RecencyPlot DISTRIBUTE BY HASH(Recency) as
+select  
+       Recency ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Recency
+order by Recency;
+
+select * from madura.RFM_RecencyPlot
+order by Recency;
+
+drop table  madura.RFM_FrequencyPlot;
+create table  madura.RFM_FrequencyPlot DISTRIBUTE BY HASH(Frequency) as
+select  
+       Frequency ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Frequency
+order by Frequency;
+
+select * from madura.RFM_RecencyPlot
+order by Frequency;
+
+drop table  madura.RFM_MonetaryPlot;
+create table  madura.RFM_MonetaryPlot DISTRIBUTE BY HASH(Monetary) as
+select  
+       Monetary ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Monetary
+order by Monetary;
+
+select * from madura.RFM_MonetaryPlot ary >0;
+order by Monetary;
+
+--- Percentile Anal
+drop table madura.RFM_recencybucket;
+create table madura.RFM_recencybucket as
+select *,
+       
+       case 
+       when recency between 0 and 5 
+            then  'Pct0-5' --1 	
+       when recency between 5 and 10 
+            then 'Pct5-10' --2 
+       when recency between 10 and 15 
+            then 'Pct10-15' --3 
+       when recency between 15 and 20
+            then 'Pct15-20' --4 
+       when recency between 20 and 25 
+            then 'Pct20-25' --5 
+       when recency between 25 and 30 
+            then 'Pct25-30' --6 
+       when recency between 30 and 35 
+            then 'Pct30-35' --7 
+       when recency between 35 and 40
+            then 'Pct35-40' --8 
+       when recency between 40 and 45 
+            then 'Pct40-45' --9 
+       when recency between 45 and 50 
+            then 'Pct45-50' --10 
+       when recency between 50 and 55 
+            then 'Pct50-55' --11 
+       when recency between 55 and 60 
+            then 'Pct55-60' --12 
+       when recency between 60 and 65 
+            then 'Pct60-65' --13 
+       when recency between 65 and 70 
+            then 'Pct65-70' --14 
+       when recency between 70 and 75 
+            then 'Pct70-75' --15 
+       when recency between 75 and 80 
+            then 'Pct75-80' --16 
+       when recency between 80 and 85 
+            then 'Pct80-85' --17 
+       when recency between 85 and 90 
+            then 'Pct85-90' --18 
+       when recency between 90 and 95 
+            then 'Pct90-95' --19 
+       when recency between 95 and 100 
+            then 'Pct95-100' --20 
+       when recency between 105 and 110 
+            then 'Pct105-110' --21   
+       when recency between 95 and 100 
+            then 'Pct95-100' --20 
+     when recency between 105 and 110 
+            then 'Pct105-110' --21 
+when recency between 115 and 120 
+            then 'Pct115-120' --22
+when recency between 125 and 130 
+            then 'Pct125-130' --23
+when recency between 135 and 140 
+            then 'Pct135-140' --24
+when recency between 145 and 150 
+            then 'Pct145-150' --25
+when recency between 155 and 160 
+            then 'Pct155-160' --26
+when recency between 165 and 170 
+            then 'Pct165-170' --27
+when recency between 175 and 180 
+            then 'Pct175-180' --28
+when recency between 185 and 190 
+            then 'Pct185-190' --29
+when recency between 195 and 200 
+            then 'Pct195-200' --30  
+when recency between 200 and 225 
+            then 'Pct200-225' --31 
+when recency between 225 and 250 
+            then 'Pct225-250' --32  
+when recency between 250 and 275 
+            then 'Pct250-275' --33 
+when recency between 275 and 300 
+            then 'Pct275-300' --34 
+when recency between 300 and 325 
+            then 'Pct300-325' --35
+when recency between 325 and 350 
+            then 'Pct325-350' --36
+      when recency >350
+            then 'Pct350+'
+       end as "recency_bucket"
+from madura.RFM
+;
+
+select * from madura.RFM_recencybucket;
+
+/*** For Plots ***/
+drop table  madura.RFM_RecencybucketPlot;
+create table  madura.RFM_RecencybucketPlot DISTRIBUTE BY HASH(Recency_bucket) as
+select  
+       Recency_bucket ,
+       count(cust_mob_nbr) as freq
+from madura.RFM_recencybucket
+group by Recency_bucket
+order by Recency_bucket;
+
+select * from madura.RFM_RecencybucketPlot;
+
+--- Monetary bucket --------
+
+drop table madura.RFM_monetarybucket;
+create table madura.RFM_monetarybucket as
+select *,
+       
+       case 
+       when monetary between 0 and 100 
+            then  'Pct0-100' --1 	
+       when monetary between 100 and 200 
+            then 'Pct100-200' --2 
+       when monetary between 200 and 300 
+            then 'Pct200-300' --3 
+       when monetary between 300 and 400
+            then 'Pct300-400' --4 
+       when monetary between 400 and 500 
+            then 'Pct400-500' --5 
+       when monetary between 500 and 600 
+            then 'Pct500-600' --6 
+       when monetary between 600 and 700 
+            then 'Pct600-700' --7 
+       when recency between 700 and 800
+            then 'Pct700-800' --8 
+       when monetary between 800 and 900 
+            then 'Pct800-900' --9 
+       when monetary between 900 and 1000 
+            then 'Pct900-1000' --10 
+       when monetary between 1000 and 1500 
+            then 'Pct1000-1500' --11 
+       when monetary between 1500 and 2000 
+            then 'Pct1500-2000' --12 
+       when monetary between 2000 and 3000 
+            then 'Pct2000-3000' --13 
+       when monetary between 3000 and 4000 
+            then 'Pct3000-4000' --14 
+       when monetary between 4000 and 5000 
+            then 'Pct4000-5000' --15 
+       when monetary between 5000 and 7000 
+            then 'Pct5000-7000' --16 
+       when monetary >7000
+            then 'Pct7000+'
+       end as "monetary_bucket"
+from madura.RFM
+;
+
+select * from madura.RFM_monetarybucket;
+
+/*** For Plots ***/
+drop table  madura.RFM_monetarybucketPlot;
+create table  madura.RFM_monetarybucketPlot DISTRIBUTE BY HASH(monetary_bucket) as
+select  
+       monetary_bucket ,
+       count(cust_mob_nbr) as freq
+from madura.RFM_monetarybucket
+group by monetary_bucket
+order by monetary_bucket;
+
+select * from madura.RFM_monetarybucketPlot;
+
+--- Frequency bucket --------
+
+drop table madura.RFM_Frequencybucket;
+create table madura.RFM_Frequencybucket as
+select *,
+       
+       case 
+       when Frequency between 0 and 5 
+            then  'Pct0-5' --1 	
+       when Frequency between 5 and 10 
+            then 'Pct5-10' --2 
+       when Frequency between 10 and 15 
+            then 'Pct10-15' --3 
+       when Frequency between 15 and 20
+            then 'Pct15-20' --4 
+       when Frequency between 20 and 25 
+            then 'Pct20-25' --5 
+       when Frequency between 25 and 30 
+            then 'Pct25-30' --6 
+       when Frequency between 30 and 35 
+            then 'Pct30-35' --7 
+       when Frequency between 35 and 40
+            then 'Pct35-40' --8 
+       when Frequency between 40 and 45 
+            then 'Pct40-45' --9 
+       when Frequency between 45 and 50 
+            then 'Pct45-50' --10 
+       when Frequency between 50 and 55 
+            then 'Pct50-55' --11 
+       when Frequency between 55 and 60 
+            then 'Pct55-60' --12 
+       when Frequency between 60 and 65 
+            then 'Pct60-65' --13 
+       when Frequency between 65 and 70 
+            then 'Pct65-70' --14 
+       when Frequency between 70 and 75 
+            then 'Pct70-75' --15 
+       when Frequency between 75 and 80 
+            then 'Pct75-80' --16 
+       when Frequency between 80 and 85 
+            then 'Pct80-85' --17 
+       when Frequency between 85 and 90 
+            then 'Pct85-90' --18 
+       when Frequency between 90 and 95 
+            then 'Pct90-95' --19 
+       when Frequency between 95 and 100 
+            then 'Pct95-100' --20
+            when recency between 105 and 110 
+            then 'Pct105-110' --21 
+when Frequency between 115 and 120 
+            then 'Pct115-120' --22
+when Frequency between 125 and 130 
+            then 'Pct125-130' --23
+when Frequency between 135 and 140 
+            then 'Pct135-140' --24
+when Frequency between 145 and 150 
+            then 'Pct145-150' --25
+when Frequency between 155 and 160 
+            then 'Pct155-160' --26
+when Frequency between 165 and 170 
+            then 'Pct165-170' --27
+when Frequency between 175 and 180 
+            then 'Pct175-180' --28
+when Frequency between 185 and 190 
+            then 'Pct185-190' --29
+when Frequency between 195 and 200 
+            then 'Pct195-200' --30  
+  when Frequency between 205 and 210 
+            then 'Pct205-210' --31
+  when Frequency between 215 and 220 
+            then 'Pct215-220' --32  
+  when Frequency between 225 and 230 
+            then 'Pct225-230' --33
+   when Frequency between 230 and 235 
+            then 'Pct230-235' --34  
+   when Frequency between 235 and 240 
+            then 'Pct235-240' --35
+   when Frequency between 240 and 245 
+            then 'Pct240-245' --36
+      when Frequency >245
+            then 'Pct245+'
+       end as "Frequency_bucket"
+from madura.RFM
+;
+
+select cust_mob_nbr, recency, frequency, monetary, "Frequency_bucket" as fb from madura.RFM_Frequencybucket;
+
+/*** For Plots ***/
+drop table  madura.RFM_FrequencybucketPlot;
+create table  madura.RFM_FrequencybucketPlot DISTRIBUTE BY HASH(Frequency_bucket) as
+select  
+       "Frequency_bucket" as frequency_bucket
+      ,count(cust_mob_nbr) as freq
+from madura.RFM_Frequencybucket
+group by "Frequency_bucket"
+order by "Frequency_bucket";
+
+select * from madura.RFM_FrequencybucketPlot;
+
+
+
+/** Remove Outlier ****/
+
+select * from madura.RFM;
+
+drop table if exists madura.RFM_Monetary_FilterOutlier;
+
+SELECT * FROM OutlierFilter(
+ON (SELECT 1)
+PARTITION BY 1
+InputTable ('madura.RFM')
+OutputTable ('madura.RFM_Monetary_FilterOutlier')
+TargetColumn ('monetary')
+Method ('percentile')
+PercentileThreshold ('90')
+RemoveTail ('upper')
+ReplacementValue ('null')
+--GroupByColumns ('cust_mob_nbr')
+);
+
+select count(*) from madura.RFM_Monetary_FilterOutlier;
+select * from madura.RFM;
+
+--- Segmentation -----
+
+--- Canopy ----
+drop table if exists madura_rfm
+CREATE TABLE madura_rfm DISTRIBUTE BY HASH(cust_mob_nbr) AS
+select * 
+from madura.rfm
+
+SELECT * FROM Canopy (
+ON (SELECT 1) PARTITION BY 1
+InputTable ('madura_rfm')
+LooseDistance ('50')
+TightDistance ('10')
+) ORDER BY canopyid;
+
+--- Normalize;
+drop table if exists madura.rfm_norm
+CREATE TABLE madura.rfm_norm DISTRIBUTE BY HASH(cust_mob_nbr) AS
+SELECT * FROM Scale(
+ON madura.RFM AS INPUT PARTITION BY ANY
+ON (SELECT * FROM ScaleMap(
+ON madura.RFM
+InputColumns('recency','frequency','monetary')
+)
+) AS STATISTIC DIMENSION
+Method('maxabs')
+Accumulate('cust_mob_nbr')
+);
+
+select * from madura.rfm_norm;
+
+--- Kmeans;
+--The following call clusters the normalized data.
+drop table madura.rfm_norm_cluster;
+drop table madura.rfm_cluster_output;
+
+SELECT * FROM KMeans(
+ON (SELECT 1) PARTITION BY 1
+InputTable('madura.rfm_norm')
+OutputTable('madura.rfm_norm_cluster')
+ClusteredOutput('madura.rfm_cluster_output')
+NumberK(5)
+Threshold('0.01')
+MaxIterNum('10')
+);
+
+select * from madura.rfm_norm_cluster;
+
+select * from madura.rfm_cluster_output;
+
+drop table if exists madura.RFM_Cluster;
+create table madura.RFM_Cluster as
+select a.clusterid, b.*
+from madura.rfm_cluster_output a
+left join madura.RFM b
+on a.cust_mob_nbr = b.cust_mob_nbr;
+
+select count(*) as num_customer,clusterid
+from madura.RFM_Cluster
+group by clusterid
+
+drop table if exists madura.RFM_Statistics;
+create table madura.RFM_Statistics DISTRIBUTE BY HASH(clusterid) as
+select  clusterid
+       ,AVG(recency) as avg_recency
+       ,MIN(recency) as min_recency 
+       ,MAX(recency) as max_recency 
+       ,AVG(frequency) as avg_freq 
+       ,MIN(frequency) as min_freq 
+       ,MAX(frequency) as max_freq
+       ,AVG(monetary) as avg_monetary 
+       ,MIN(monetary) as min_monetary 
+       ,MAX(monetary) as max_monetary
+       ,count(cust_mob_nbr) as num_cust
+from madura.RFM_Cluster
+group by clusterid
+order by clusterid
+
+select * from madura.RFM_Statistics;
+
+--- Selecting Cluster 0-----
+
+drop table if exists madura.pos_cluster;
+
+CREATE TABLE madura.pos_cluster  DISTRIBUTE BY HASH (cust_mob_nbr)
+as select a.store_id, a.cust_mob_nbr, a.txn_date, a.txn_id, a.product, b.clusterid from madura.pos1 a
+left join madura.rfm_cluster b
+on a.cust_mob_nbr = b.cust_mob_nbr
+	
+select * from madura.pos_cluster;
+  
+drop table if exists madura.pos_cluster_0;
+CREATE TABLE madura.pos_cluster_0  DISTRIBUTE BY HASH (cust_mob_nbr)
+as select * from madura.pos_cluster
+where clusterid = 0;
+
+drop table if exists madura.cf_pos_cluster
+
+SELECT *
+FROM cfilter (
+   ON (SELECT 1)
+   PARTITION BY 1
+   database('beehive')
+   userid('db_superuser')
+   password('db_superuser')
+   inputTable('madura.pos_cluster_0')
+   outputTable('madura.cf_pos_cluster')
+   inputColumns('product')
+   joinColumns('cust_mob_nbr')
+   droptable('true')
+);
+
+select * from madura.cf_pos_cluster;
+
+-- Generate Sigma plot visualisations for top 1000 word associations for all three cfilter tables
+SELECT *
+FROM GraphGen (
+ON (SELECT * from madura.cf_pos_cluster order by z_score desc limit 1000)
+PARTITION BY 1
+item_format('cfilter')
+item1_col('col1_item1')
+item2_col('col1_item2')
+cnt1_col('cnt1')
+cnt2_col('cnt2')
+score_col('z_score')
+output_format('sigma')
+title('CF Product Association')
+domain('192.168.100.100')
+)
+;
+
+--https://192.168.100.100/chrysalis/mr/graphgen/sigma/sigma.html?id=sigma_1476076173323_0000_1
+
+drop table if exists s_affinity_madura ;
+create table s_affinity_madura as 
+ select * 
+ from 
+ (select 
+    col1_item1
+ ,   col1_item2
+ ,    cntb 
+ ,   cnt1 as   cnt1 
+ ,   cnt2 as   cnt2 
+ ,  score as   score  
+ ,   support as   support 
+ ,  confidence as   confidence
+ ,   lift as   lift
+ ,   z_score as   z_score  
+ from   s_output_table
+ ) a;               
+                
+                
+               
+//product recommendation  
+
+select * from madura.pos_cluster_0;
+
+DROP TABLE IF EXISTS pos_cluster_0;
+CREATE TABLE pos_cluster_0 AS SELECT * FROM madura.pos_cluster_0;
+
+DROP TABLE IF EXISTS cf_pos_cluster;
+CREATE TABLE cf_pos_cluster AS SELECT * FROM madura.cf_pos_cluster;
+
+ drop table if exists madura.pos_cluster_recommendation;
+ 
+ SELECT * FROM cfilterRecommender( 
+			    ON (select 1) 
+			    PARTITION BY 1 
+			    transaction_table('pos_cluster_0') 
+			    cfilter_table('cf_pos_cluster') 
+			    recommendation_table('pos_cluster0_recommendation') 
+			    purchased_item_column('product') 
+			    user_column('cust_mob_nbr') 
+			    userid('db_superuser')
+    			password('db_superuser')
+   				database('beehive')
+			    drop_table('true') 
+				);
+
+select * from pos_cluster0_recommendation where cust_mob_nbr = '8971500'--'7406000024';
+
+-- Cluster 4
+select * from madura.pos_cluster_4 where cust_mob_nbr = '917080202385';
+
+select * from madura.pos_cluster_4 where cust_mob_nbr = '910692642050';
+
+
+DROP TABLE IF EXISTS pos_cluster_4;
+CREATE TABLE pos_cluster_4 AS SELECT * FROM madura.pos_cluster_4;
+
+DROP TABLE IF EXISTS cf_pos_cluster;
+CREATE TABLE cf_pos_cluster AS SELECT * FROM madura.cf_pos_cluster;
+
+ drop table if exists madura.pos_cluster_recommendation;
+ 
+ SELECT * FROM cfilterRecommender( 
+			    ON (select 1) 
+			    PARTITION BY 1 
+			    transaction_table('pos_cluster_4') 
+			    cfilter_table('cf_pos_cluster') 
+			    recommendation_table('pos_cluster4_recommendation') 
+			    purchased_item_column('product') 
+			    user_column('cust_mob_nbr') 
+			    userid('db_superuser')
+    			password('db_superuser')
+   				database('beehive')
+			    drop_table('true') 
+				);
+
+select * from pos_cluster4_recommendation where cust_mob_nbr = '910692642050';
+
+-- https://192.168.100.100/chrysalis/mr/recommender/recommender.html?id=1476343030970_0000_1
+
+
+----pSalsa -----
+
+				
+select count(*) from madura.pos_cluster_4;
+
+drop table if exists madura.pos_cluster_4;
+CREATE TABLE madura.pos_cluster_4  DISTRIBUTE BY HASH (cust_mob_nbr)
+as select * from madura.pos_cluster
+where clusterid = 4;
+
+drop table if exists madura_user_product_nodes_tmp ;
+create FACT TABLE madura_user_product_nodes_tmp (nodename varchar) distribute by hash(nodename) as
+SELECT  
+    nodename
+FROM 
+(
+select distinct product as nodename from madura.pos_cluster_4
+UNION ALL
+select distinct cust_mob_nbr as nodename from madura.pos_cluster_4
+) x;
+
+select * from madura_user_product_nodes_tmp;
+
+drop table if exists madura_user_product_nodes ;
+create FACT TABLE madura_user_product_nodes (nodeid integer, nodename varchar) distribute by hash(nodeid);
+INSERT INTO madura_user_product_nodes
+SELECT ROW_NUMBER() OVER (ORDER BY tab1.nodename) as nodeid,
+tab1.nodename as nodename
+FROM madura_user_product_nodes_tmp as tab1
+
+select * from madura_user_product_nodes
+
+--input
+
+select * from madura.pos_cluster_4;
+
+drop table if exists women_apparel_log ;
+create FACT TABLE women_apparel_log (username varchar, product varchar, frequency integer) distribute by hash (username) as
+select cust_mob_nbr as username
+      ,product as product
+      ,count(1) as frequency
+from madura.pos_cluster_4
+group by cust_mob_nbr , product
+order by cust_mob_nbr , product
+
+select * from women_apparel_log
+
+
+drop table if exists user_source_nodes ;
+create FACT TABLE user_source_nodes (nodeid integer, username varchar) distribute by hash(nodeid) as 
+select * from madura_user_product_nodes where nodename like '%L%' limit  100  ;
+
+drop table if exists product_target_nodes ;
+create FACT TABLE product_target_nodes (nodeid integer, product varchar) distribute by hash(nodeid) as
+select * from madura_user_product_nodes where nodename not like '%L%'  limit  100
+
+drop table if exists madura_user_product_salsa;	
+create table madura_user_product_salsa distribute by hash (username) as
+SELECT * FROM pSALSA(
+ON madura_user_product_nodes AS vertices PARTITION BY nodename
+ON women_apparel_log AS edges PARTITION BY username
+--ON user_source_nodes AS sources PARTITION BY username
+--ON product_target_nodes AS targets PARTITION BY product
+SOURCEKEY('username')
+TARGETKEY('product')
+EDGEWEIGHT('frequency')
+MAXHUBNUM('2')
+MAXAUTHORITYNUM('2')
+TELEPORTPROB('0.15')
+RANDOMWALKLENGTH('500')
+) ORDER BY username, hub_score DESC, authority_score DESC;
+
+select * from madura_user_product_salsa;
+
+select * from madura_user_product_salsa where username = '910692642050';
+
+select * from graphgen( 
+	on(select a.* from madura_user_product_salsa a 
+	join (select distinct(username) as username from women_apparel_log limit 200) b 
+	on a.username = b.username 
+	where authority_item is not null) 
+	partition by 1 
+	item_format('individual') 
+	item1_col('username') 
+	item2_col('authority_item') 
+	score_col('authority_score') 
+	output_format('sigma') 
+--	aster_lens('true') 
+	directed('true') 
+	title ('Recommendation pSALSA'));
+
+
+
+

@@ -1,0 +1,598 @@
+-- creating RFM table for training dataset
+-- 1. create monitory table
+
+drop table madura.monetary;
+
+create table madura.monetary DISTRIBUTE BY HASH(cust_mob_nbr) as
+select cust_mob_nbr, 
+       txn_date, 
+       sum(selling_price)as sum_selling_price 
+from madura.pos_training
+group by cust_mob_nbr, txn_date
+;
+
+--verify data
+select * from madura.monetary;
+select count(*)from madura.monetary;
+select min(selling_price)from madura.pos_training;
+
+--create RFM (Recency Frequency Monetary table)
+drop table  madura.RFM;
+
+create table  madura.RFM DISTRIBUTE BY HASH(cust_mob_nbr) as
+select cust_mob_nbr, 
+      (current_date - max(txn_date)) as Recency ,
+       count(cust_mob_nbr)            as Frequency,
+       sum(sum_selling_price)        as Monetary
+from madura.monetary
+group by cust_mob_nbr;
+
+--verify data
+select * from madura.RFM;
+select count(*) from madura.RFM;
+select count(distinct(cust_mob_nbr)) from madura.rfm_norm;
+
+
+/*** For Plots 
+-- recency plot
+drop table  madura.RFM_RecencyPlot;
+
+create table  madura.RFM_RecencyPlot DISTRIBUTE BY HASH(Recency) as
+select  
+       Recency ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Recency;
+
+
+select * from madura.RFM_RecencyPlot
+order by Recency;
+
+-- frequency plot
+drop table  madura.RFM_FrequencyPlot;
+
+create table  madura.RFM_FrequencyPlot DISTRIBUTE BY HASH(Frequency) as
+select  
+       Frequency ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Frequency;
+
+select * from madura.RFM_FrequencyPlot
+order by Frequency desc;
+
+drop table  madura.RFM_MonetaryPlot;
+create table  madura.RFM_MonetaryPlot DISTRIBUTE BY HASH(Monetary) as
+select  
+       Monetary ,
+       count(cust_mob_nbr) as freq
+from madura.RFM
+group by Monetary;
+
+select * from madura.RFM_MonetaryPlot
+order by Monetary;
+
+---- Percentile Distribution ----
+
+SELECT *
+FROM ApproxPercentileReduce
+(
+ON 
+  (Select * 
+  from ApproxPercentileMap
+ (
+ON madura.RFM
+TARGET_COLUMN('recency')
+ERROR(1)
+)
+)
+PARTITION BY 1
+PERCENTILE(5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100)
+);
+
+--recency bucket
+
+drop table madura.RFM_recencybucket;
+
+create table madura.RFM_recencybucket as
+select *,
+      case 
+       when recency between 0 and 151 
+            then  'Pct0-5' --1 	
+       when recency between 151 and 162 
+            then 'Pct5-10' --2 
+       when recency between 162 and 178 
+            then 'Pct10-15' --3 
+       when recency between 178 and 191
+            then 'Pct15-20' --4 
+       when recency between 191 and 209 
+            then 'Pct20-25' --5 
+       when recency between 209 and 231
+            then 'Pct25-30' --6 
+       when recency between 231 and 254 
+            then 'Pct30-35' --7 
+       when recency between 254 and 275
+            then 'Pct35-40' --8 
+       when recency between 275 and 329 
+            then 'Pct40-45' --9 
+       when recency between 329 and 372 
+            then 'Pct45-50' --10 
+       when recency between 372 and 428 
+            then 'Pct50-55' --11 
+       when recency between 428 and 454
+            then 'Pct55-60' --12 
+       when recency between 454 and 533 
+            then 'Pct60-65' --13 
+       when recency between 533 and 559
+            then 'Pct65-70' --14 
+       when recency between 559 and 608 
+            then 'Pct70-75' --15 
+       when recency between 608 and 639
+            then 'Pct75-80' --16 
+       when recency between 639 and 676
+            then 'Pct80-85' --17 
+       when recency between 676 and 704 
+            then 'Pct85-90' --18 
+       when recency between 704 and 735
+            then 'Pct90-95' --19 
+       when recency between 735 and 773 
+            then 'Pct95-100' --20 
+      
+       end as "recency_bucket"
+from madura.RFM
+;
+
+select * from madura.RFM_recencybucket;
+select count(*)from madura.RFM_recencybucket;
+
+/*** Not using for now, need more clarity
+/*** For Plots ***/
+drop table  madura.RFM_RecencybucketPlot;
+
+create table  madura.RFM_RecencybucketPlot DISTRIBUTE BY HASH(Recency_bucket) as
+select  
+       Recency_bucket ,
+       count(cust_mob_nbr) as freq
+from madura.RFM_recencybucket
+group by Recency_bucket;
+
+
+select * from madura.RFM_RecencybucketPlot order by recency_bucket desc;
+
+-- Remove Outlier 
+
+select * from madura.RFM;
+
+drop table if exists madura.RFM_Monetary_FilterOutlier;
+
+SELECT * FROM OutlierFilter(
+ON (SELECT 1)
+PARTITION BY 1
+InputTable ('madura.RFM')
+OutputTable ('madura.RFM_Monetary_FilterOutlier')
+filterCol('monetary')
+Method ('percentile')
+PercentileValues ('5', '95')
+RemoveTail ('both')
+ReplacementValue ('null')
+GroupByCols ('cust_mob_nbr')
+);
+
+select count(*) from madura.RFM_Monetary_FilterOutlier;
+
+select count(*) from madura.RFM;
+
+-- outliers based on recency
+
+drop table if exists madura.RFM_Recency_FilterOutlier;
+
+SELECT * FROM OutlierFilter(
+ON (SELECT 1)
+PARTITION BY 1
+InputTable ('madura.RFM')
+OutputTable ('madura.RFM_Recency_FilterOutlier')
+filterCol('recency')
+Method ('percentile')
+PercentileValues ('5', '95')
+RemoveTail ('both')
+ReplacementValue ('null')
+GroupByCols ('cust_mob_nbr')
+);
+
+-- outlier based on frequency
+drop table if exists madura.RFM_freq_FilterOutlier;
+
+SELECT * FROM OutlierFilter(
+ON (SELECT 1)
+PARTITION BY 1
+InputTable ('madura.RFM')
+OutputTable ('madura.RFM_Frequency_FilterOutlier')
+filterCol('freq')
+Method ('percentile')
+PercentileValues ('5', '95')
+RemoveTail ('both')
+ReplacementValue ('null')
+GroupByCols ('cust_mob_nbr')
+);
+
+select * from madura.RFM;
+ --end plot ***/
+ --End "need more clarity" ***/
+
+--- Normalize;
+drop table if exists madura.rfm_norm;
+
+CREATE TABLE madura.rfm_norm DISTRIBUTE BY HASH(cust_mob_nbr) AS
+SELECT * FROM Scale(
+ON madura.RFM AS INPUT PARTITION BY ANY
+ON (SELECT * FROM ScaleMap(
+ON madura.RFM
+InputColumns('recency','frequency','monetary')
+)
+) AS STATISTIC DIMENSION
+Method('maxabs')
+Accumulate('cust_mob_nbr')
+);
+
+select * from madura.rfm_norm;
+select count(*)from madura.rfm_norm;
+
+--- Canopy (need more clarity)----
+
+/* SELECT * FROM Canopy (
+ON (SELECT 1) PARTITION BY 1
+InputTable ('madura.rfm_norm')
+LooseDistance ('50') -- to be confirmed
+TightDistance ('10') -- to be confirmed
+) ORDER BY canopyid;
+ */
+
+--- Kmeans;
+--The following call clusters the normalized data.
+drop table madura.rfm_norm_cluster;
+drop table madura.rfm_cluster_output;
+
+SELECT * FROM KMeans(
+ON (SELECT 1) PARTITION BY 1
+InputTable('madura.rfm_norm')
+OutputTable('madura.rfm_norm_cluster')
+ClusteredOutput('madura.rfm_cluster_output')
+NumberK(5)
+Threshold('0.01')
+MaxIterNum('10')
+);
+
+select * from madura.rfm_norm_cluster;
+
+select * from madura.rfm_cluster_output;
+
+-- appending cluster id to each row in RFM table
+
+drop table if exists madura.RFM_Cluster;
+
+create table madura.RFM_Cluster as
+select a.clusterid, b.*
+from madura.rfm_cluster_output a
+left join madura.RFM b
+on a.cust_mob_nbr = b.cust_mob_nbr;
+
+select count(*) as num_customer,clusterid
+from madura.RFM_Cluster
+group by clusterid;
+
+--RFM table stats
+drop table if exists madura.RFM_Statistics;
+
+create table madura.RFM_Statistics DISTRIBUTE BY HASH(clusterid) as
+select  clusterid
+       ,AVG(recency) as avg_recency
+       ,MIN(recency) as min_recency 
+       ,MAX(recency) as max_recency 
+       ,AVG(frequency) as avg_freq 
+       ,MIN(frequency) as min_freq 
+       ,MAX(frequency) as max_freq
+       ,AVG(monetary) as avg_monetary 
+       ,MIN(monetary) as min_monetary 
+       ,MAX(monetary) as max_monetary
+       ,count(cust_mob_nbr) as num_cust
+from madura.RFM_Cluster
+group by clusterid;
+
+select * from madura.RFM_Statistics order by clusterid;
+
+drop table if exists madura.pos_cluster;
+
+-- assign cluster id for each pos record
+
+CREATE TABLE madura.pos_cluster  DISTRIBUTE BY HASH (cust_mob_nbr)
+as
+select
+   a.store_id, 
+   a.cust_mob_nbr, 
+   a.txn_date, 
+   a.txn_id, 
+   a.product, 
+   b.clusterid 
+from madura.pos_training a
+left join madura.rfm_cluster b
+on a.cust_mob_nbr = b.cust_mob_nbr
+;
+	
+select * from madura.pos_cluster;
+select count(*) from madura.pos_cluster;
+select distinct clusterid from madura.pos_cluster;
+  
+
+-- CFilter
+
+drop table if exists madura.cf_pos_cluster;
+
+SELECT *
+FROM cfilter (
+   ON (SELECT 1)
+   PARTITION BY 1
+   database('beehive')
+   userid('db_superuser')
+   password('db_superuser')
+   inputTable('madura.pos_cluster')
+   outputTable('madura.cf_pos_cluster')
+   inputColumns('product')
+   joinColumns('cust_mob_nbr')
+   droptable('true')
+);
+
+select * from cf_pos_cluster;
+select count(*)from madura.cf_pos_cluster;
+
+-- Generate Sigma plot visualisations for top 1000 word associations for all three cfilter tables
+SELECT *
+FROM GraphGen (
+ON (SELECT * from madura.cf_pos_cluster order by z_score desc limit 1000)
+PARTITION BY 1
+item_format('cfilter')
+item1_col('col1_item1')
+item2_col('col1_item2')
+cnt1_col('cnt1')
+cnt2_col('cnt2')
+score_col('z_score')
+output_format('sigma')
+title('CF Product Association')
+domain('192.168.100.100')
+)
+;
+
+--replicating the table in public schema for app center use
+create table cf_pos_cluster as
+SELECT * from madura.cf_pos_cluster order by z_score desc limit 1000
+;
+
+-- recommendation
+-- we will run recommendation on training set, and manually validate against actuals in the validation set. We will use existing 
+--customers for validation. For examle: Customers who have made purchases prior to and after June 2016
+
+drop table if exists madura.pos_training_set1;
+
+create table madura.pos_training_set1 as
+select * from madura.pos_training where cust_mob_nbr in (select distinct(cust_mob_nbr)from madura.pos_validation);-- limit 10000);
+
+select * from madura.pos_training_set1;
+select count(*)from madura.pos_training_set1;
+
+-- recreating tables in default schema to run cfilter recommender because cfilter recommender cannot run in madura schema
+drop table if exists pos_training_set1;
+
+create table pos_training_set1 as
+select * from madura.pos_training_set1;
+
+select count(*) from pos_training_set1;
+select count(distinct(cust_mob_nbr))from pos_training_set1;
+
+--saving space
+drop table if exists madura.pos_training_set1;
+
+drop table if exists cf_pos_cluster;
+
+create table cf_pos_cluster as
+select * from madura.cf_pos_cluster;
+
+select * from cf_pos_cluster;
+
+--saving space
+drop table if exists madura.cf_pos_cluster;
+
+SELECT * FROM cfilterRecommender(
+    ON (select 1)
+    PARTITION BY 1
+    transaction_table('pos_training_set1')
+    cfilter_table('cf_pos_cluster')
+    recommendation_table('cf_recommendation')
+    purchased_item_column('product')
+    user_column('cust_mob_nbr') 
+    userid('db_superuser')
+    password('db_superuser')
+    database('beehive')
+    drop_table('true')
+);
+
+select * from cf_recommendation order by purchase_probability desc;
+
+--spliting strings
+
+drop table if exists madura.cf_reco_split;
+
+create table madura.cf_reco_split (
+cust_mob_nbr VARCHAR, 
+col1_item2 VARCHAR,
+purchase_probability VARCHAR,
+SUB_BRAND VARCHAR,
+CATEGORY VARCHAR,
+SLEEVE VARCHAR,
+FIT VARCHAR,
+APPAREL_PATTERN VARCHAR,
+APPAREL_SIZE VARCHAR,
+FASHION_PYRAMID VARCHAR
+)
+DISTRIBUTE BY HASH(cust_mob_nbr)
+;
+
+insert into madura.cf_reco_split 
+ select  cust_mob_nbr
+        ,col1_item2
+        ,purchase_probability
+        ,split_part(col1_item2,'_',1)
+		,split_part(col1_item2,'_',2)
+		,split_part(col1_item2,'_',3)
+		,split_part(col1_item2,'_',4)
+		,split_part(col1_item2,'_',5)
+		,split_part(col1_item2,'_',6)
+		,split_part(col1_item2,'_',7)
+  from cf_recommendation;
+
+select count(*) from madura.cf_reco_split;
+select * from madura.cf_reco_split order by cust_mob_nbr, purchase_probability desc;
+select * from madura.cf_reco_split where cust_mob_nbr in (select distinct cust_mob_nbr from madura.pos_validation);
+select * from madura.pos_validation where cust_mob_nbr in('9164123210','917034458806');
+
+--saving space
+drop table cf_recommendation;
+         
+     
+
+/* leave out fp growth for now
+select * from madura_rfm;
+
+SELECT * FROM FPGrowth (
+ON (SELECT 1)
+PARTITION BY 1
+InputTable ('madura.pos_cluster')
+OutputRuleTable ('fpgrowth_out_rule')
+OutputPatternTable ('fpgrowth_out_pattern')
+TranItemColumns ('item')
+TranIDColumns ('customerid')
+GroupByColumns ('basketid')
+MinSupport (0.5)
+MinConfidence (0)
+MaxPatternLength (3)
+ConsequenceCountRange ('1-1')
+PatternsOrRules ('both')
+);
+*/
+
+ 
+--- ACCURACY CHECKS
+-- check accuracy of cFilter recommendation
+select * from madura.cf_reco_split order by cust_mob_nbr, purchase_probability desc;
+select * from madura.pos_validation where cust_mob_nbr != '0' order by cust_mob_nbr;
+
+select cust_mob_nbr, count(purchase_probability)as cnt from madura.cf_reco_split where purchase_probability > '0.06' 
+group by cust_mob_nbr order by cnt desc  ;
+
+drop table if exists madura.cf_reco_split_top10;
+
+create table madura.cf_reco_split_top10 as
+  (select * from (select *, row_number()over (partition by cust_mob_nbr order by purchase_probability desc) as row_id from 
+  madura.cf_reco_split) as A where row_id < 11 order by cust_mob_nbr);
+  
+select count(distinct(cust_mob_nbr))from madura.cf_reco_split_top10; 
+
+-- assuming a match in category, fit, and size
+
+select distinct reco.purchase_probability,
+	   act.cust_mob_nbr as cust_mob_number,
+       reco.sub_brand as reco_sub_brand,
+	   act.sub_brand  as act_sub_brand,
+       reco.category  as reco_category,
+       act.category   as act_category,
+       reco.sleeve    as reco_sleeve,
+       act.sleeve     as act_sleeve,
+       reco.fit       as reco_fit ,
+       act.fit        as act_fit ,
+       reco.apparel_pattern as reco_apparel_pattern,
+       act.apparel_pattern  as act_apparel_pattern,
+       reco.apparel_size    as reco_apparel_size ,
+       act.apparel_size     as act_apparel_size,
+       reco.fashion_pyramid as reco_fashion_pyramid,
+       act.fashion_pyramid  as act_fashion_pyramid      
+from   madura.cf_reco_split_top10 reco, 
+       madura.pos_validation act
+where act.cust_mob_nbr = reco.cust_mob_nbr
+  and act.category     = reco.category
+--and act.apparel_size = reco.apparel_size
+  and act.sleeve       = reco.sleeve
+  and act.fit          = reco.fit
+order by 
+      act.cust_mob_nbr,
+      reco.purchase_probability desc
+  ;
+  
+--coverage (23801/37383)  
+select count(distinct(reco.cust_mob_nbr))
+from   madura.cf_reco_split_top10 reco, 
+       madura.pos_validation act
+where act.cust_mob_nbr = reco.cust_mob_nbr
+  and act.category    = reco.category
+--and act.apparel_size = reco.apparel_size
+  and act.sleeve       = reco.sleeve
+  and act.fit = reco.fit
+  ;
+  
+-- probability range(0.25 - 0.04)
+select max(reco.purchase_probability),
+       min (reco.purchase_probability)
+from   madura.cf_reco_split_top10 reco, 
+       madura.pos_validation act
+where act.cust_mob_nbr = reco.cust_mob_nbr
+  and act.category    = reco.category
+  and act.apparel_size = reco.apparel_size
+  and act.fit = reco.fit
+  ;
+-- Accuracy tests (comment out parameters that you don't want to use)
+select count(distinct(reco.cust_mob_nbr))
+from   madura.cf_reco_split_top10 reco, 
+       madura.pos_validation act
+where act.cust_mob_nbr = reco.cust_mob_nbr
+  and act.category    = reco.category
+   -- and act.apparel_pattern = reco.apparel_pattern
+   and act.fashion_pyramid = reco.fashion_pyramid
+   and act.apparel_size = reco.apparel_size
+   and act.sleeve       = reco.sleeve
+   and act.fit = reco.fit
+   and act.sub_brand = reco.sub_brand
+  ;
+  
+ -- category = 85%
+ --category,size,fit = 52%
+ -- category and fit = 24872/37383 = 67%
+ -- category,fit, sleeve = 23801/37383 = 64%
+ -- category,fit,sleeve,sub_brand = 22626/37383 = 61%
+ -- category,fit, sleeve, sub_brand,fashion pyramid = 17746/37383 = 47%
+ -- category,sub-brand,sleeve,fit,size, fashion pyrmaid = 12693/37383 = 34%
+ -- category,fit,sleeve,sub_brand, fashion pyramid, pattern, and size = 9407/37383 = 25%
+ 
+ ------ Vidhi queries
+
+ 
+---
+select * from madura.pos_training where cust_mob_nbr in ('919986710821','919316256777');
+ 
+select * from madura.pos_validation where cust_mob_nbr in ('919986710821','919316256777');
+ 
+select * from madura.cf_reco_split_top10 where cust_mob_nbr in ('919986710821','919316256777');
+ 
+--select * from madura.pos_cluster where cust_mob_nbr in ('919986710821','919316256777');
+ 
+--select * from  madura.cf_reco_split where cust_mob_nbr in ('919986710821','919316256777');
+ 
+select * from madura.psalsa_reco_split where cust_mob_nbr in ('919986710821','919316256777');
+ 
+
+
+select * from madura.pos_training where cust_mob_nbr in ('919869477252','919941431305');
+
+select * from madura.pos_validation where cust_mob_nbr in ('919869477252','919941431305');
+
+select * from madura.user_product_salsa where cust_mob_nbr in ('919869477252','919941431305');
+
+select * from madura.cf_reco_split_top10 where cust_mob_nbr in ('919869477252','919941431305');
+  
+	

@@ -1,0 +1,82 @@
+--INSERT INTO app_center_visualizations  (json) 
+--SELECT json FROM Visualizer (
+--ON (select * from madura.RFM_RecencyPlot) PARTITION BY 1  
+--AsterFunction('custom') 
+--Title('') 
+--VizType('bar')
+--ColumnMap('x1=recency','y1=freq')
+--VizOptions('aggregation=ordered','coordinateaxes="Recency","",CATEGORICAL;"Recency Distribution","",NUMERIC')
+--);
+
+
+
+--INSERT INTO app_center_visualizations  (json) 
+--SELECT json FROM Visualizer (
+--ON (select * from madura.RFM_RecencyPlot) PARTITION BY 1  
+--AsterFunction('custom') 
+--Title('') 
+--VizType('statistics:bar')
+--ColumnMap('x1=recency','y1=freq')
+--VizOptions('aggregation=ordered','coordinateaxes="Recency","",CATEGORICAL;"Recency Distribution","",NUMERIC')
+--);
+
+
+
+INSERT INTO app_center_visualizations  (json) 
+SELECT json FROM Visualizer (
+ON (select * from madura.RFM_recencybucketplot) PARTITION BY 1  
+AsterFunction('custom') 
+Title('') 
+VizType('bar')
+ColumnMap('x1=recency_bucket','y1=freq')
+VizOptions('aggregation=ordered','coordinateaxes="Recency Bucket","",CATEGORICAL;"Recency Bucket Distribution","",NUMERIC')
+);
+
+
+----------------------------
+
+begin;
+
+INSERT INTO app_center_visualizations  (json) 
+SELECT json FROM Visualizer (
+ON (select clusterid, avg_recency from madura.RFM_Statistics ) PARTITION BY 1  ORDER BY clusterid 
+AsterFunction('custom') 
+Title('Clusterwise Recency Statistic') 
+VizType('bar')
+ColumnMap('x1=clusterid','y1=avg_recency')
+VizOptions('coordinateaxes="ClusterID", "", categorical; "Cluster Recency", "", numeric')
+);
+
+
+INSERT INTO app_center_visualizations  (json) 
+SELECT json FROM Visualizer (
+ON (select clusterid, avg_freq from madura.RFM_Statistics ) PARTITION BY 1  ORDER BY clusterid 
+AsterFunction('custom') 
+Title('Clusterwise Frequency Statistic') 
+VizType('bar')
+ColumnMap('x1=clusterid','y1=avg_freq')
+VizOptions('coordinateaxes="ClusterID", "", categorical; "Cluster Frequency", "", numeric')
+);
+
+
+INSERT INTO app_center_visualizations  (json) 
+SELECT json FROM Visualizer (
+ON (select clusterid, avg_monetary from madura.RFM_Statistics ) PARTITION BY 1  ORDER BY clusterid 
+AsterFunction('custom') 
+Title('Clusterwise Monetary Statistic') 
+VizType('bar')
+ColumnMap('x1=clusterid','y1=avg_monetary')
+VizOptions('coordinateaxes="ClusterID", "", categorical; "Cluster Monetary", "", numeric')
+);
+
+
+INSERT INTO app_center_visualizations  (json) 
+SELECT json FROM Visualizer (
+ON   (select * from madura.cf_pos_cluster )  PARTITION BY 1 
+AsterFunction('cfilter') 
+Title('Product Association') 
+VizType('sigma')
+);
+
+end;
+
