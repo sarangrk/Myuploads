@@ -1,0 +1,3 @@
+HOME_DIR: '/Users/xx000000'
+MAIN_DIR: '/path/to/project/directory'
+CONN_STR: 'Driver=/Library/Application Support/teradata/client/16.20/lib/tdataodbc_sbu.dylib;DBCName=ipaddress;Database=dbname;Uid=username;Pwd=password;'

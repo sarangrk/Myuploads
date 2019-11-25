@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  credit-scoring-dap:
+    container_name: credit-scoring-dap
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes:
+      - ./r:/www/rshiny/app
+    environment:
+      - TD_SCHEMA=JAPAN_DAP
+    ports:
+      - "8090:8090"
