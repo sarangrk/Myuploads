@@ -1,0 +1,104 @@
+/* body style */
+body {
+    font-family: Arimo,Helvetica Neue,Helvetica,Arial,sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #333;
+    /* background-color: #fff;
+    background-color: #ecf0f5; */
+}
+
+/* title settings */
+/* taken from the think big website */
+.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
+    font-family: Lato,sans-serif;
+    font-weight: 500;
+    line-height: 1.1;
+    color: #EC881D;
+}
+
+/* navbar font */
+.main-header .logo {
+  font-family: Arimo,Helvetica Neue,Helvetica,Arial,sans-serif;
+  font-weight: bold;
+  font-size: 24px;
+  height: 53px;
+}
+
+/* logo */
+.skin-blue .main-header .logo {
+  background-color: #FFFFFF;
+  color: #EC881D;
+  padding: 0px;
+}
+
+/* logo when hovered */
+.skin-blue .main-header .logo:hover {
+  background-color: #FFFFFF;
+  border-left-color: #EC881D;
+}
+
+/* navbar (rest of the header) */
+.skin-blue .main-header .navbar {
+  background-color: #FFFFFF;
+    border-left-color: #EC881D;
+}
+
+/* main sidebar */
+.skin-blue .main-sidebar {
+  background-color: #3C3C3B;
+    border-left-color: #EC881D;
+}
+
+/* active selected tab in the sidebarmenu */
+.skin-blue .main-sidebar .sidebar .sidebar-menu .active a{
+  background-color: #5F6062;
+    border-left-color: #EC881D;
+}
+
+/* other links in the sidebarmenu */
+.skin-blue .main-sidebar .sidebar .sidebar-menu a{
+  background-color: #3C3C3B;
+  color: #FFFFFF;
+}
+
+/* Fixing the sidebar so it doesn't move */
+.sidebar {
+    position: fixed;
+    overflow: visible;
+}
+
+/* other links in the sidebarmenu when hovered */
+.skin-blue .main-sidebar .sidebar .sidebar-menu a:hover{
+  background-color: #BBBCBE;
+    border-left-color: #EC881D;
+}
+
+/* toggle button when hovered  */
+.skin-blue .main-header .navbar .sidebar-toggle:hover{
+  background-color: #3C3C3B;
+    border-left-color: #EC881D;
+}
+
+/* Boxes */
+.box.box-solid.box-primary>.box-header {
+  color: #ffffff;
+  background: #EC881D;
+  text-transform: uppercase;
+  font-family: Arimo,Helvetica Neue,Helvetica,Arial,sans-serif;
+}
+
+.box.box-solid.box-primary {
+  border-color: #EC881D;
+}
+
+/* Fixes main header so it doesn't move */
+.main-header {
+  position: fixed;
+  width:100%;
+}
+
+/* Need the padding to secure visibility of content */
+.content {
+  padding-top: 60px;
+}
