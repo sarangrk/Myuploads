@@ -1,5 +1,0 @@
-Cluster0:VeryRisky
-Cluster 3: Risky
-Cluster 4:Offensive 
-Cluster2:Defensive
-Cluster 1: Safe
