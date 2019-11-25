@@ -1,2 +1,0 @@
-python src/scripts/make_lda_model.py  --parsed --num_topics 80 data/interim/noise_records_rev.csv --alpha 0.625 --beta 0.01 --total_iterations 2000 --burn_in_iteration 1800 --stop_words_path data/extern/stop_words.1.csv
-# python src/scripts/tree.py --WorkflowRunner.config_file='data/interim/cleansed-text-joined_F_FAULT_PROPOSAL_LL-F_FAULT_WHEN_LL-F_FAULT_SITUATION_LL/filtered-parsed_docs_chasen_noise_parts_count-stop_words=stop_words.1.csv_doc_word_freq/rf_60_topics/config.py'

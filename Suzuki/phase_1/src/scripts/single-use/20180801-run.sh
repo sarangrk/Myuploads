@@ -1,4 +1,0 @@
-python src/scripts/make_lda_model_plda.py --parsed data/interim/FTIR_base_info_JP_4wheels_col_F_ID-F_FAULT_PROPOSAL_LL_0.4_s0-rep_hyph_parsed.csv  --num_topics 30 --ignored_topics 12 16 22
-python src/scripts/make_lda_model_plda.py --parsed data/interim/FTIR_base_info_JP_4wheels_col_F_ID-F_FAULT_PROPOSAL_LL_0.4_s0-rep_hyph_parsed.csv  --num_topics 50 --ignored_topics 5 7 10 11 15 26 33 34 35 41 44
-python src/scripts/make_lda_model_plda.py --parsed data/interim/FTIR_base_info_JP_4wheels_col_F_ID-F_FAULT_PROPOSAL_LL_0.4_s0-rep_hyph_parsed.csv  --stop_words data/extern/stop_words.csv  --num_topics 30 --ignored_topics 2 7 25 28
-python src/scripts/make_lda_model_plda.py --parsed data/interim/FTIR_base_info_JP_4wheels_col_F_ID-F_FAULT_PROPOSAL_LL_0.4_s0-rep_hyph_parsed.csv  --stop_words data/extern/stop_words.csv  --num_topics 50 --ignored_topics 3 10 11 20 22 26 41 44 46

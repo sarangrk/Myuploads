@@ -1,1 +1,0 @@
-python src/scripts/make_lda_model_plda.py  --parsed --num_topics 100 data/interim/cleansed-text-joined_F_FAULT_PROPOSAL_LL-F_FAULT_WHEN_LL-F_FAULT_SITUATION_LL/filtered-parsed_docs_chasen.csv --alpha 0.5 --beta 0.01 --total_iterations 2000 --burn_in_iteration 1800 --stop_words_path data/extern/stop_words.1.csv
