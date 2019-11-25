@@ -1,0 +1,72 @@
+head	1.2;
+access;
+symbols;
+locks
+	zaki:1.2; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.06.24.19.16.01;	author zaki;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.06.06.00.04.45;	author zaki;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@added pruning.
+@
+text
+@#ifndef __treeminer_H
+#define __treeminer_H
+ 
+#include <vector>
+#include <functional>
+#define BranchIt -1 //-1 indicates a branch in the tree
+
+//enums
+enum sort_vals {nosort, incr, decr};
+enum alg_vals {treeminer, maxtreeminer};
+enum prune_vals {noprune, prune};
+  
+//externs
+extern double MINSUP_PER;
+extern int MINSUPPORT;
+extern int DBASE_MAXITEM;
+extern int DBASE_NUM_TRANS;
+
+extern bool output;
+extern bool output_idlist;
+
+extern sort_vals sort_type;  
+extern alg_vals alg_type;
+extern prune_vals prune_type;
+
+template<class T>
+struct delnode: public unary_function<T, void>{
+   void operator() (T x){ delete x; }
+};
+
+
+#endif
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d4 2
+d8 5
+d21 11
+@
