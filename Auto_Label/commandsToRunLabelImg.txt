@@ -1,3 +1,0 @@
-conda install pyqt=5
-pyrcc5 -o resources.py resources.qrc
-python labelImg.py
