@@ -1,0 +1,36 @@
+Package: dmmfR
+Title: Model Management Framework for R
+Version: 0.2.0
+Authors@R: c(person("David", "Springate", email = "david.springate@teradata.com", role = c("aut", "cre")),
+             person("Niket", "Doshi", email = "niket.doshi@thinkbiganalytics.com", role = c("aut")),
+             person("Eliano", "Marques", email = "eliano.marques@thinkbiganalytics.com", role = c("aut")))
+Description: A package to perform model management tasks such as create model metadata, push metadata to couchbasedb, get and put model pmml files from s3 etc.\
+             The package now uses S4 classes and S3 methods to perform the above tasks. 
+             A Model Factory mode allows you to build arbitrary numbers of models of the same type, split
+             across an arbitrary number of grouping variables.
+Depends: R (>= 3.4.0), magrittr
+Imports: assertthat (>= 0.2.0), aws.s3 (>= 0.3.3), aws.signature (>=
+        0.3.5), base64enc, caret (>= 6.0-77), dplyr, glmnet, httr (>=
+        1.3.1), jsonlite (>= 1.5), methods (>= 3.4.1), Metrics, mgcv,
+        parallel, r2pmml (>= 0.15.0), readr (>= 1.1.1), reticulate (>=
+        1.3.1), stats, stringr, uuid (>= 0.1-2)
+Suggests: devtools, e1071, randomForest, testthat, knitr, rmarkdown
+License: MIT + file LICENSE
+Collate: 'add_data.R' 'aws.R' 'class_data.R' 'class_model.R'
+        'class_model_factory.R' 'class_scoring.R' 'helpers.R'
+        'class_model_workflow.R' 'create.R' 'data.R' 'dmmfR.R' 'drop.R'
+        'gam_feature_engineering.R' 'get_csv.R' 'load.R'
+        'methods_metadata.R' 'methods_model_workflow.R' 'methods_s3.R'
+        'parallel_execution.R' 'put_pmml.R' 'save.R' 'scoring.R'
+        'serialize.R' 'training.R' 'variable_audit.R' 'zzz.R'
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.0
+Remotes: jpmml/r2pmml
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2019-11-06 06:39:06 UTC; sk186089
+Author: David Springate [aut, cre],
+  Niket Doshi [aut],
+  Eliano Marques [aut]
+Maintainer: David Springate <david.springate@teradata.com>

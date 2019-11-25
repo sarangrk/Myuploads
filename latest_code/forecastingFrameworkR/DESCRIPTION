@@ -1,0 +1,18 @@
+Package: forecastingFrameworkR
+Type: Package
+Title: Demand Forecasting Extensions for the dmmfR package
+Version: 0.1.0
+Authors@R: c(person("David", "Springate", email = "david.springate@teradata.com", role = c("aut", "cre")))
+Description: Extensions to the dmmfR package to deal with time series and demand forecasting analyses.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 3.4.1), magrittr
+Imports: assertthat, dmmfR, dplyr, RcppRoll, stats, xts, zoo
+Suggests: devtools, testthat, knitr, rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1
+NeedsCompilation: no
+Packaged: 2018-06-06 11:07:49 UTC; root
+Author: David Springate [aut, cre]
+Maintainer: David Springate <david.springate@teradata.com>
