@@ -1,0 +1,494 @@
+# Front page module
+
+# Data loading tab UI
+#' @export
+#' sprintf("input['%s'] != ''", ns("mySelect")) conditional example
+#' 
+#' 
+dataLoadTabUI <- function(id) {
+  
+  ns <- NS(id)
+  
+  csv_files <- c('text/csv', 'text/comma-separated-values,text/plain', '.csv')
+  s3_datasets <- c(get_s3_datasets())
+  # names(s3_datasets) <- get_nice_dataset_name(s3_datasets)
+  tabPanel(
+    'Load Data',
+    fluidPage(
+      titlePanel("Choosing your data"),
+      fluidRow(
+        column(8,
+               p('First, choose the dataset you want to work with on the right.'),
+               conditionalPanel(condition = sprintf("(input['%s'] != '')", 
+                                                    ns("data_source")),
+                                p("If you have chosen a pre-existing dataset, you can customise the each of the individual datasets by uploading your own files, or continue with the default settings."),
+                                p('Finally, click the button labelled "Process data" to start the analysis process (the button may take a moment to appear after choosing a dataset).'))
+        ),
+        column(4,
+               selectInput(ns('data_source'), 'Data selection', list(`Choose a dataset`='', `Existing datasets`=s3_datasets, `Custom dataset`=list(`Upload a custom dataset`='custom')), selectize=TRUE),
+               conditionalPanel(condition = sprintf("(input['%s'] != '') && (input['%s'] != 'custom')", 
+                                                    ns("data_source"), ns("data_source")),
+                                checkboxInput(ns('customise_dataset'), 'Customise the chosen dataset'))
+        )
+      ),
+      
+      conditionalPanel(condition = sprintf("(input['%s'] == 'custom')||((input['%s'] != '' && input['%s'] != 'upload' && input['%s']))", 
+                                           ns("data_source"), ns("data_source"), ns("data_source"), ns("customise_dataset")),
+                       fluidRow(
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('asset_data_list'), 'Asset dataset', c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("asset_data_list"), ns("data_source")),
+                                                 fileInput(ns('asset_data'), 'Asset dataset', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('repair_data_list'), 'Asset repairs', c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("repair_data_list"), ns("data_source")),
+                                                 fileInput(ns('repair_data'), 'Asset repairs', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                  conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('replacement_data_list'), 'Asset replacements', 
+                                                             c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')",
+                                                                     ns("replacement_data_list"), ns("data_source")),
+                                                 fileInput(ns('replacement_data'), 'Asset replacements', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                  conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('planned_data_list'), 'Planned maintenance', c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("planned_data_list"), ns("data_source")),
+                                                 fileInput(ns('planned_data'), 'Planned maintenance', accept = csv_files))
+                         )
+                       ),
+                       
+                       fluidRow(
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('asset_attribute_data_1_list'), 'Asset attributes 1', 
+                                                             c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("asset_attribute_data_1_list"), ns("data_source")),
+                                                 fileInput(ns('asset_attribute_data_1'), 'Asset attributes', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('asset_attribute_data_2_list'), 'Asset attributes 2', 
+                                                             c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("asset_attribute_data_2_list"), ns("data_source")),
+                                                 fileInput(ns('asset_attribute_data_2'), 'Asset attributes', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('asset_attribute_data_3_list'), 'Asset attributes 3', c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("asset_attribute_data_3_list"), ns("data_source")),
+                                                 fileInput(ns('asset_attribute_data_3'), 'Asset attributes', accept = csv_files))
+                         ),
+                         column(3,
+                                hr(),
+                                conditionalPanel(condition = sprintf("(input['%s'] != 'custom') ", 
+                                                                     ns("data_source")),
+                                                 selectInput(ns('asset_attribute_data_4_list'), 'Asset attributes 4', c(None='', 'Upload custom file'='upload'), selectize=FALSE)),
+                                conditionalPanel(condition = sprintf("(input['%s'] == 'upload')||(input['%s'] == 'custom')", 
+                                                                     ns("asset_attribute_data_4_list"), ns("data_source")),
+                                                 fileInput(ns('asset_attribute_data_4'), 'Asset attributes', accept = csv_files))
+                         )
+                       )
+      ),
+      conditionalPanel(condition = sprintf("(input['%s'] != '')&&(input['%s'] != '')&&(input['%s'] != '')&&(input['%s'] != '')", 
+                                           ns("asset_data_list"), ns("repair_data_list"), ns("replacement_data_list"), ns("planned_data_list")),
+                       br(),
+                       actionButton(ns("process_data"), "Process data"),
+                       br(),
+                       br(),
+                       p(textOutput(ns("data_load_results")))
+      ),
+      conditionalPanel(condition = sprintf("(input['%s'] == 'custom')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')||(input['%s'] == 'upload')", 
+                                           ns("data_source"), ns("asset_data_list"), ns("repair_data_list"), ns("replacement_data_list"), ns("planned_data_list"), ns("asset_attribute_data_1_list"), ns("asset_attribute_data_2_list"), ns("asset_attribute_data_3_list"), ns("asset_attribute_data_4_list")),
+                       br(),
+                       h3('Data description'),
+                       p('To upload your own data it must follow the below description.'),
+                       wellPanel(data_description())
+      )
+    )
+  )
+}
+
+
+
+dataLoadTab <- function(input, output, session, navpage) {
+#### Observe Inputs and Process Raw Data ####
+  observe({
+    message("Data Source: ", input$data_source)
+    if ((input$data_source != '') && (input$data_source != 'upload')) {
+      values <- c('s3', 'upload')
+      names(values) <- c(get_nice_dataset_name(input$data_source), 'Upload custom file')
+      for (item_to_update in c("asset_data_list", "repair_data_list", "replacement_data_list", "planned_data_list")) {
+        updateSelectInput(session, item_to_update, choices = values)
+      }
+      
+      attr_files <- get_s3_dataset_attribute_files(input$data_source)
+      values <- c('', attr_files, 'upload')
+      names(values) <- c('None', get_nice_dataset_name(attr_files), 'Upload custom file')
+      item_number <- 1
+      for (item_to_update in c("asset_attribute_data_1_list", "asset_attribute_data_2_list", "asset_attribute_data_3_list", "asset_attribute_data_4_list")) {
+        selected <- ''
+        if (item_number <= length(attr_files)) {
+          selected <- attr_files[[item_number]]
+        }
+        updateSelectInput(session, item_to_update, choices = values, selected = selected)
+        item_number <- item_number + 1
+      }
+    }
+  })
+  
+  observeEvent(input$process_data, {
+    if (input$data_source == 'custom') {
+      raw_names <<- list(
+        asset_data = input$asset_data$name,
+        repair_data = input$repair_data$name,
+        replacement_data = input$replacement_data$name,
+        planned_data = input$planned_data$name
+      )
+      raw_data <<- list(
+        asset_data = read.csv(input$asset_data$datapath),
+        repair_data = read.csv(input$repair_data$datapath),
+        replacement_data = read.csv(input$replacement_data$datapath),
+        planned_data = read.csv(input$planned_data$datapath)
+      )
+      
+      for (object_name in c('asset_attribute_data_1', 'asset_attribute_data_2', 'asset_attribute_data_3', 'asset_attribute_data_4')) {
+        if (!is.null(input[[object_name]]$datapath)) {
+          raw_data[[object_name]] <<- read.csv(input[[object_name]]$datapath)
+          raw_names[[object_name]] <<- input[[object_name]]$name
+        } else {
+          raw_data[[object_name]] <<- NULL
+          raw_names[[object_name]] <<- NULL
+        }
+      }
+      
+      global_dataset[['raw']] <- raw_data
+      global_dataset[['raw_names']] <- raw_names
+      global_dataset[["processed"]] <- NULL
+      process_raw_data()
+      
+    } else if (input$data_source != '') {
+      s3_data <<- get_s3_dataset(input$data_source)
+      raw_data <<- list()
+      raw_names <<- list()
+      
+      for (object_name in c('asset_data', 'repair_data', 'replacement_data', 'planned_data', 'asset_attribute_data_1', 'asset_attribute_data_2', 'asset_attribute_data_3', 'asset_attribute_data_4')) {
+        if (input[[paste0(object_name,'_list')]] == 'upload') {
+          raw_data[[object_name]] <<- read.csv(input[[object_name]]$datapath)
+          raw_names[[object_name]] <<- input[[object_name]]$name
+        } else if (input[[paste0(object_name,'_list')]] == '') {
+          raw_data[[object_name]] <<- NULL
+          raw_names[[object_name]] <<- NULL
+        } else {
+          if (startsWith(object_name, 'asset_attribute_')) {
+            raw_data[[object_name]] <<- s3_data[[paste0('asset_attribute_data_', input[[paste0(object_name,'_list')]])]]
+            raw_names[[object_name]] <<- input[[paste0(object_name,'_list')]]
+          } else {
+            raw_data[[object_name]] <<- s3_data[[object_name]]
+            raw_names[[object_name]] <<- object_name
+          }
+        }
+      }
+      
+      global_dataset[['raw']] <- raw_data
+      global_dataset[['raw_names']] <- raw_names
+      global_dataset[["processed"]] <- NULL
+      message("Up to process raw data")
+      process_raw_data()
+    }
+    # Fire model building and populate survival frame
+    if(globalDataReady()) {
+      build_models_and_validate()
+      extract_survival_stats()
+    }
+  })
+  
+  process_raw_data <- reactive({
+    withProgress(message="Wrangling Data", value = 0, {
+      # Get repair data
+      events <- cbind(global_dataset[['raw']][['repair_data']])
+      events$event_type <- 'repair'
+      
+      # Get replacement date
+      replacements <- cbind(global_dataset[['raw']][['replacement_data']])
+      replacements$event_type <- 'replacement'
+      
+      # Combine repair and replacement date
+      events <- bind_rows(events, replacements)
+      events$event_date <- as.Date(as.character(events$event_date))
+      events$installed_date <- as.Date(events$installed_date)
+      events$event_date <- as.Date(events$event_date)
+      
+      incProgress(1/5, detail="Wrangling Events")
+      
+      # Find assets that have events and select the most recent event for each asset
+      censored_with_events <<- events %>% 
+        group_by(asset_id) %>% 
+        mutate(rn = row_number(as.Date(event_date))) %>% 
+        filter(rn == max(rn)) %>% select(-rn)
+      
+      # Find the date of the most recent event and set that as the start of a new asset that will be right censored
+      censored_with_events$installed_date <- censored_with_events$event_date
+      
+      # If we're replacing the asset, reset the repairs and unplanned counts
+      censored_with_events[censored_with_events$event_type == 'replacement',]$previous_repairs <- 0
+      censored_with_events[censored_with_events$event_type == 'replacement',]$previous_unplanned <- 0
+      
+      censored_with_events$event_type <- 'censored'
+      censored_with_events$event_id <- 'NA'
+      censored_with_events$event_date <- NULL
+      
+      # Fetch the end of the observation time from the asset data and set that as the event time. This is the time of censorship
+      censored_with_events <- merge(censored_with_events,
+                                    global_dataset[['raw']][['asset_data']][names(global_dataset[['raw']][['asset_data']]) %in% c('asset_id', 'end_date')],
+                                    suffixes = c('', '.todrop'), all.x = TRUE)
+      
+      censored_with_events$event_date <- censored_with_events$end_date
+      censored_with_events$end_date <- NULL
+      censored_with_events$installed_date <- as.Date(censored_with_events$installed_date)
+      censored_with_events$event_date <- as.Date(censored_with_events$event_date)
+      
+      # Now look for assets without any events, these are are also right censored
+      censored_without_event <- cbind(global_dataset[['raw']][['asset_data']])
+      censored_without_event$longitude <- NULL
+      censored_without_event$latitude <- NULL
+      censored_without_event$event_date <- censored_without_event$end_date
+      censored_without_event$installed_date <- censored_without_event$start_date
+      censored_without_event$event_type <- 'censored'
+      censored_without_event$end_date <- NULL
+      censored_without_event$start_date <- NULL
+      censored_without_event$event_id <- 'NA'
+      censored_without_event <- censored_without_event[!(censored_without_event$asset_id %in% censored_with_events$asset_id),]
+      censored_without_event$installed_date <- as.Date(censored_without_event$installed_date)
+      censored_without_event$event_date <- as.Date(censored_without_event$event_date)
+      
+      # combine censored_with_events and censored_without_event
+      censored <- bind_rows(censored_with_events, censored_without_event)
+      
+      global_dataset$processed$full <- bind_rows(events, censored)
+      
+      incProgress(1/5, detail="Wrangling Censored Events")
+      
+      global_dataset$processed$full <- merge(global_dataset$processed$full, global_dataset[['raw']][['planned_data']], by="event_id", suffixes=c('', '.todrop'), all.x = TRUE)
+      global_dataset$processed$full <- merge(global_dataset$processed$full, global_dataset[['raw']][['asset_data']], by="asset_id", suffixes = c('', '.todrop'), all.x = TRUE)
+      
+      for (object_name in c('asset_attribute_data_1', 'asset_attribute_data_2', 'asset_attribute_data_3', 'asset_attribute_data_4')) {
+        if (!is.null(global_dataset$raw[[object_name]])) {
+          global_dataset$processed$full <- merge(global_dataset$processed$full, global_dataset$raw[[object_name]], by="asset_id", suffixes = c('', '.todrop'), all.x = TRUE)
+        }
+      }
+      
+      incProgress(1/5, detail="Wrangling Asset Attributes")
+      
+      # Get rid of any duplicate columns
+      global_dataset$processed$full[endsWith(names(global_dataset$processed$full), '.todrop')] <- NULL
+      
+      global_dataset$processed$full$event_date <- as.Date(global_dataset$processed$full$event_date)
+      global_dataset$processed$full$installed_date <- as.Date(global_dataset$processed$full$installed_date)
+      
+      # add the survival time and censorship
+      global_dataset$processed$full$survival_time <- as.numeric(difftime(global_dataset$processed$full$event_date, global_dataset$processed$full$installed_date, units = 'days'))
+      global_dataset$processed$full$planned <- as.logical(global_dataset$processed$full$planned)
+      
+      global_dataset$processed$full$event_occurred <- ifelse(is.na(global_dataset$processed$full$planned), 0,
+                                                             ifelse(global_dataset$processed$full$planned == FALSE, 1, 0))
+      
+      global_dataset$processed$full$failure_year <- NA
+      global_dataset$processed$full$failure_month <- NA
+      
+      event_happened_selection <- (global_dataset$processed$full$event_occurred == 1)
+      global_dataset$processed$full[event_happened_selection,]$failure_year <- year(global_dataset$processed$full[event_happened_selection,]$event_date)
+      global_dataset$processed$full[event_happened_selection,]$failure_month <- month(global_dataset$processed$full[event_happened_selection,]$event_date)
+      
+      asset_ids <- unique(global_dataset$processed$full$asset_id)
+      
+      incProgress(1/5, detail="Wrangling Survival Variables")
+      
+      spec = c(train = .6, test = .2, validate = .2)
+      set.seed(454545)
+      grouping = sample(cut(seq(length(asset_ids)), length(asset_ids)*cumsum(c(0, spec))))
+      split_asset_ids = split(asset_ids, grouping)
+      names(split_asset_ids) <- names(spec)
+      
+      global_dataset$processed$train <- global_dataset$processed$full[global_dataset$processed$full$asset_id %in% split_asset_ids$train,]
+      global_dataset$processed$test <- global_dataset$processed$full[global_dataset$processed$full$asset_id %in% split_asset_ids$test,]
+      global_dataset$processed$validate <- global_dataset$processed$full[global_dataset$processed$full$asset_id %in% split_asset_ids$validate,]
+      
+      incProgress(1/5, detail="Splitting into Test/Train")
+      
+    })
+    
+  })
+  
+  #### Data Upload Text Output ####
+  raw_datasets <- eventReactive(global_dataset[['raw']], {
+    global_dataset[['raw']]
+  })
+  
+  output$data_load_results <- renderText({
+    n_files <- length(raw_datasets())
+    n_assets <- length(unique(global_dataset$processed$full$asset_id))
+    planned <- global_dataset$processed$full$planned[!is.na(global_dataset$processed$full$planned)]
+    # n_failures <- sum(as.numeric(!as.logical(planned)))
+    format(paste0('Successfully loaded and processed ', n_files, ' data files containing ', n_assets, ' assets.'))
+  })
+  
+  #### Model Building ####
+  
+  ## Get forecast times ##
+  forecast_times <- reactive({
+    max_time <- max(global_dataset$processed$train$survival_time)
+    times_to_forecast <- c(30, 90, 180, 360)
+    times_to_forecast[times_to_forecast >= max_time] <- max_time
+    return(times_to_forecast)
+  })
+  
+  extract_survival_stats <- reactive({
+    survival <<- list("partition_variables"=attributes_for_modelling(global_dataset$processed$train),
+                      "data"=global_dataset$processed$full,
+                      "completed"=TRUE)
+  })
+  
+  ## Validation forecast build ##
+  generate_validation_set_forecast <- reactive({
+    validation_forecast <<- data.frame(
+      "asset_id"=global_dataset$processed$validate$asset_id,
+      "survival_time"=global_dataset$processed$validate$survival_time,
+      "event"=global_dataset$processed$validate$event_occurred,
+      "lng"=global_dataset$processed$validate$longitude,
+      "lat"=global_dataset$processed$validate$latitude,
+      "completed"=rep(FALSE, length=dim(global_dataset$processed$validate$asset_id)[1]),
+      stringsAsFactors = FALSE
+    )
+    return(validation_forecast)
+  })
+  
+  ## Test forecast build ##
+  generate_test_set_forecast <- reactive({
+    test_forecast <<- data.frame(
+      "asset_id"=global_dataset$processed$test$asset_id,
+      "survival_time"=global_dataset$processed$test$survival_time,
+      "event"=global_dataset$processed$test$event_occurred,
+      "lng"=global_dataset$processed$test$longitude,
+      "lat"=global_dataset$processed$test$latitude,
+      "completed"=rep(FALSE, length=dim(global_dataset$processed$test$asset_id)[1]),
+      stringsAsFactors = FALSE
+    )
+    return(test_forecast)
+  })
+  
+  ## Modelling building event ##
+  build_models_and_validate <- reactive({
+    # Initialize validation set and get forecast times
+    generate_validation_set_forecast()
+    generate_test_set_forecast()
+    times <- forecast_times()
+    
+    # KLUDGE - REMOVE LATER
+    global_dataset$processed$train$survival_time <- ifelse(global_dataset$processed$train$survival_time <= 0, 0.001, global_dataset$processed$train$survival_time)
+    global_dataset$processed$validate$survival_time <- ifelse(global_dataset$processed$validate$survival_time <= 0, 0.001, global_dataset$processed$validate$survival_time)
+    
+    # Build models
+    # NB: INCLUDE STRATA
+    withProgress(message="Building Models", value = 0, {
+      attribs <- attributes_for_modelling(global_dataset$processed$train, ignore.user = TRUE)
+      # 
+      # # CoxPH linear fit
+      # survival_models$linear <<- coxph(get_model_formula(attribs), data=global_dataset$processed$train)
+       incProgress(1/3, detail="Building Linear Survival Model")
+      # 
+      # Decision Tree - restrict to 5 nodes
+      survival_models$dt <<- pecRpart(get_model_formula(attribs), data=global_dataset$processed$train, maxdepth=5)
+      incProgress(1/3, detail="Building Survival Decision Tree")
+      
+      # Survival Forest
+      survival_models$rf <<- rfsrc(get_model_formula(attribs), data=global_dataset$processed$train, ntree=500, importance = TRUE)
+      incProgress(1/3, detail="Building Survival Random Forest")
+    })
+    
+    
+    # Make predictions on validation set
+    withProgress(message="Validating Models", value=0, {
+      # Validate CoxPH linear fit
+      # lin_probs <- predictSurvProb(survival_models$linear, newdata = global_dataset$processed$validate, times=times)
+      # lin_probs_test <- predictSurvProb(survival_models$linear, newdata = global_dataset$processed$test, times=times)
+      incProgress(1/3, detail="Validating Linear Survival Model")
+      
+      # Validate Decision Tree
+      dt_probs <- predictSurvProb(survival_models$dt, newdata = global_dataset$processed$validate, times=times)
+      dt_probs_test <- predictSurvProb(survival_models$dt, newdata = global_dataset$processed$test, times=times)
+      incProgress(1/3, detail="Validating Survival Decision Tree")
+      
+      # Validate Random Forest
+      rf_probs <- predictSurvProb(survival_models$rf, newdata = global_dataset$processed$validate, times=times)
+      rf_probs_test <- predictSurvProb(survival_models$rf, newdata = global_dataset$processed$test, times=times)
+      incProgress(1/3, detail="Validating Survival Random Forest")
+    })
+    
+    # Make sure that NAs are set to 0
+    # lin_probs <- ifelse(is.na(lin_probs), 0, lin_probs)
+    # lin_probs_test <- ifelse(is.na(lin_probs_test), 0, lin_probs_test)
+    dt_probs <- ifelse(is.na(dt_probs), 0, dt_probs)
+    dt_probs_test <- ifelse(is.na(dt_probs_test), 0, dt_probs_test)
+    rf_probs <- ifelse(is.na(rf_probs), 0, rf_probs)
+    rf_probs_test <- ifelse(is.na(rf_probs_test), 0, rf_probs_test)
+    
+    # Update names and bind to forecast
+    # colnames(lin_probs) <- paste("Predict_SL_", times, sep="")
+    colnames(dt_probs) <- paste("Predict_ST_", times, sep="")
+    colnames(rf_probs) <- paste("Predict_SRF_", times, sep="")
+    # colnames(lin_probs_test) <- paste("Predict_SL_", times, sep="")
+    colnames(dt_probs_test) <- paste("Predict_ST_", times, sep="")
+    colnames(rf_probs_test) <- paste("Predict_SRF_", times, sep="")
+    
+    # Bind together along with survival time and event occurrence
+    validation_forecast <<- cbind(validation_forecast,
+                                  cbind(global_dataset$processed$validate[, c("survival_time", "event_occurred")], cbind(cbind( dt_probs), rf_probs))
+    )
+    test_forecast <<- cbind(test_forecast,
+                            cbind(global_dataset$processed$test[, c("survival_time", "event_occurred")], cbind(cbind( dt_probs_test), rf_probs_test))
+    )
+    
+    validation_forecast[, "completed"] <<- TRUE
+    test_forecast[, "completed"] <<- TRUE
+    
+    survival_models$rf_complete <<- TRUE
+    survival_models$dt_complete <<- TRUE
+    survival_models$linear_complete <<- TRUE
+  })
+  
+  validate_forecast_completed <- reactive({
+    if(length(validation_forecast$completed) > 0)
+      return(validataion_forecast$completed)
+  })
+  
+  test_forecast_completed <- reactive({
+    if(length(test_forecast$completed) > 0)
+      return(test_forecast$completed)
+  })
+}

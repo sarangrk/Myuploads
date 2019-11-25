@@ -1,0 +1,36 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - apk add --update py-pip
+  - pip install bumpversion awscli
+  # - $(aws ecr get-login --no-include-email --region us-east-1)
+  - docker login -u "$NEXUS_REGISTRY_USER" -p "$NEXUS_REGISTRY_PASSWORD" $NEXUS_REGISTRY
+
+stages:
+  - build
+  - deploy
+
+build-master:
+  stage: build
+  script:
+    - bumpversion --verbose --allow-dirty release
+    - sh ./build.sh `cat .app-version`
+  only:
+    - master
+
+deploy-master:
+  stage: deploy
+  script:
+    - echo "TODO - Deploy"
+  only:
+    - master
+
+build-release:
+  stage: build
+  script:
+    - ./build.sh
+  except:
+    - master

@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1537277816712.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "FCCBC10",
+    "lastKnownWriteTime" : 1537290771,
+    "last_content_update" : 1537290771704,
+    "path" : "C:/Users/teradata/Desktop/PAM/PAMdemo/pam-analyser/global.R",
+    "project_path" : "global.R",
+    "properties" : {
+        "cursorPosition" : "64,2",
+        "scrollLine" : "50"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

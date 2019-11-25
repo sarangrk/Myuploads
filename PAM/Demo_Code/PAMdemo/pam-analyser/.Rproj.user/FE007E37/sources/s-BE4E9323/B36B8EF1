@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1537287699057.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "B36B8EF1",
+    "lastKnownWriteTime" : 1536746392,
+    "last_content_update" : 1536746392,
+    "path" : "C:/Users/teradata/Desktop/PAM/PAMdemo/pam-analyser/tabs/00_introTab/tab_module.R",
+    "project_path" : "tabs/00_introTab/tab_module.R",
+    "properties" : {
+        "cursorPosition" : "18,86",
+        "scrollLine" : "10"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
