@@ -1,0 +1,129 @@
+h2 {
+  color: orange;
+}
+
+video {
+         height: 100%;
+         width: 100%;
+         min-height: 100%;
+         max-height: 100%;
+       }
+
+.bs-callout {
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #eee;
+    border-left-width: 5px;
+    border-radius: 3px;
+}
+.bs-callout h4 {
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+.bs-callout p:last-child {
+    margin-bottom: 0;
+}
+.bs-callout code {
+    border-radius: 3px;
+}
+.bs-callout+.bs-callout {
+    margin-top: -5px;
+}
+.bs-callout-default {
+    border-left-color: #777;
+}
+.bs-callout-default h4 {
+    color: #777;
+}
+.bs-callout-primary {
+    border-left-color: #428bca;
+}
+.bs-callout-primary h4 {
+    color: #428bca;
+}
+.bs-callout-success {
+    border-left-color: #5cb85c;
+}
+.bs-callout-success h4 {
+    color: #5cb85c;
+}
+.bs-callout-danger {
+    border-left-color: #d9534f;
+}
+.bs-callout-danger h4 {
+    color: #d9534f;
+}
+.bs-callout-warning {
+    border-left-color: #f0ad4e;
+}
+.bs-callout-warning h4 {
+    color: #f0ad4e;
+}
+.bs-callout-info {
+    border-left-color: #5bc0de;
+}
+.bs-callout-info h4 {
+    color: #5bc0de;
+}
+.well input[type="number"] {
+    width: 100%;
+    max-width: 100%;
+}
+.shiny-input-container:not(.shiny-input-container-inline) {
+  width: 100%;
+}
+
+.content-wrapper, .right-side {
+    background-color: #fff;
+}
+.box, .nav-tabs-custom {
+    box-shadow: 0px 0 4px rgba(0,0,0,0.1);
+    border-top: 0;
+}
+
+.tab-content {
+    box-shadow: 0px 0 4px rgba(0,0,0,0.1);
+    border-top: 0;
+    padding: 10px 10px 10px 10px;
+}
+
+.tabbable .nav-tabs li.active:hover a, .tabbable .nav-tabs li.active a {
+     background-color: #EF6C00;
+     border-color: transparent;
+     color:#f6f6f6;
+}
+
+.tabbable .nav-tabs li {
+     heiht: 100px;
+}
+
+.box-header {
+  background-color: #EF6C00;
+  color:#f6f6f6;
+}
+
+.fa-6 {
+    margin-right: .07142857em;
+    font-size: 20em;
+}
+
+.fa-5 {
+    margin-right: .07142857em;
+    font-size: 12em;
+}
+
+.modal-body table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 0 !important;
+}
+
+.modal-body th, .modal-body td {
+    padding: 6px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-body tr:hover {
+  background-color:#f5f5f5;
+}

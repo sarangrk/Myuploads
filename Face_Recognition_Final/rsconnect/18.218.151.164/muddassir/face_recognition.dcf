@@ -1,0 +1,12 @@
+name: face_recognition
+title: Face_Recognition
+username: muddassir
+account: muddassir
+server: 18.218.151.164
+hostUrl: http://18.218.151.164:3939/__api__
+appId: 6
+bundleId: 30
+url: http://18.218.151.164:3939/facerecognition/
+when: 1530172786.00818
+asMultiple: FALSE
+asStatic: FALSE
